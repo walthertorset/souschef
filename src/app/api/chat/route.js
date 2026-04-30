@@ -47,6 +47,7 @@ const tools = [{
           kategori: { type: "STRING", description: "Kategori for oppskriften ('hverdag' eller 'helg')" },
           rangering: { type: "INTEGER", description: "Rangering fra 1 til 5" },
           notater: { type: "STRING", description: "Eventuelle notater" },
+          cuisine: { type: "STRING", description: "Type kjøkken (f.eks 'Italiensk', 'Asiatisk', 'Norsk')" },
           oppskrift: { type: "STRING", description: "Oppskriftsdata som JSON streng (ingredienser, instruksjoner etc)" },
           sist_laget: { type: "STRING", description: "Dato for når den sist ble laget (YYYY-MM-DD)" }
         },
@@ -65,7 +66,8 @@ const tools = [{
           torsdag: { type: "STRING" },
           fredag: { type: "STRING" },
           lordag: { type: "STRING" },
-          sondag: { type: "STRING" }
+          sondag: { type: "STRING" },
+          handleliste: { type: "STRING", description: "En samlet handleliste for hele uken, gjerne i markdown-format" }
         }
       }
     }
