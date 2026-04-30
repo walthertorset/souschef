@@ -124,6 +124,10 @@ export default function Home() {
     setIsLoginLoading(false);
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
   const handleImageUpload = async (e, recipeId) => {
     const file = e.target.files[0];
     if (!file) return;
