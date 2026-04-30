@@ -52,6 +52,22 @@ const tools = [{
         },
         required: ["navn"]
       }
+    },
+    {
+      name: "lagre_ukesmeny",
+      description: "Lagre eller oppdater ukesmenyen for brukeren. Bruk dette når du har foreslått en meny og brukeren er fornøyd, eller hvis brukeren ber deg sette opp menyen. Returner gjerne en oppdatert handleliste i chatten etterpå.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          mandag: { type: "STRING" },
+          tirsdag: { type: "STRING" },
+          onsdag: { type: "STRING" },
+          torsdag: { type: "STRING" },
+          fredag: { type: "STRING" },
+          lordag: { type: "STRING" },
+          sondag: { type: "STRING" }
+        }
+      }
     }
   ]
 }];
@@ -81,6 +97,15 @@ async function executeTool(call, supabase, userId) {
       
       const payload = { ...args, oppskrift: parsedOppskrift, user_id: userId };
       const { data, error } = await supabase.from("kokebok").insert(payload).select();
+      if (error) throw error;
+      return { success: true, added: data };
+    }
+    if (name === "lagre_ukesmeny") {
+      const payload = { ...args, user_id: userId, oppdatert: new Date().toISOString() };
+      const { data, error } = await supabase
+        .from("ukesmeny")
+        .upsert(payload, { onConflict: 'user_id' })
+        .select();
       if (error) throw error;
       return { success: true, added: data };
     }
