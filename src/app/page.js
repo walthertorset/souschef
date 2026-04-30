@@ -353,7 +353,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <label className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-full cursor-pointer transition-colors relative">
               {isUploadingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
-              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleImageUpload(e, selectedRecipe.id)} disabled={isUploadingImage} />
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, selectedRecipe.id)} disabled={isUploadingImage} />
             </label>
           </div>
         </div>
