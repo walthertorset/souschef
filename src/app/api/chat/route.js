@@ -2,7 +2,6 @@ import { GoogleGenAI } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 const tools = [{
   functionDeclarations: [
@@ -57,7 +56,7 @@ const tools = [{
   ]
 }];
 
-async function executeTool(call) {
+async function executeTool(call, supabase, userId) {
   const { name, args } = call;
   try {
     if (name === "hent_lager") {
@@ -66,7 +65,7 @@ async function executeTool(call) {
       return { data };
     }
     if (name === "legg_til_ingredienser") {
-      const payload = args.ingredienser || [];
+      const payload = (args.ingredienser || []).map(item => ({ ...item, user_id: userId }));
       const { data, error } = await supabase.from("lager").insert(payload).select();
       if (error) throw error;
       return { success: true, added: data };
@@ -80,7 +79,7 @@ async function executeTool(call) {
       let parsedOppskrift = args.oppskrift;
       try { parsedOppskrift = JSON.parse(args.oppskrift); } catch(e) {}
       
-      const payload = { ...args, oppskrift: parsedOppskrift };
+      const payload = { ...args, oppskrift: parsedOppskrift, user_id: userId };
       const { data, error } = await supabase.from("kokebok").insert(payload).select();
       if (error) throw error;
       return { success: true, added: data };
@@ -93,6 +92,28 @@ async function executeTool(call) {
 
 export async function POST(req) {
   try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        global: {
+          headers: {
+            Authorization: authHeader,
+          },
+        },
+      }
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     const { messages } = body;
     
@@ -127,7 +148,7 @@ Følgende forutsetninger gjelder ALLTID:
       loopCount++;
       const functionResponses = [];
       for (const call of response.functionCalls) {
-        const result = await executeTool(call);
+        const result = await executeTool(call, supabase, user.id);
         functionResponses.push({
           functionResponse: {
             name: call.name,
