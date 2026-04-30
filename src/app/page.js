@@ -225,7 +225,7 @@ export default function Home() {
               Middagsløsningen du har <span className="text-emerald-600">ventet på.</span>
             </h1>
             <p className="text-lg md:text-xl text-slate-600 mb-10 max-w-2xl mx-auto leading-relaxed">
-              Souschef holder styr på varelageret ditt, foreslår ukesmenyer basert på det du har, og lager handlelister som gjør butikkturen lynrask.
+              Souschef foreslår retter basert på de unike råvarene du har i skapet, kombinert med enkle ting du får på nærbutikken. Din matglede, systematisert.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button onClick={scrollToLogin} className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-slate-800 transition-all flex items-center justify-center gap-2 group shadow-xl shadow-slate-900/10">
@@ -241,10 +241,10 @@ export default function Home() {
           <div className="max-w-6xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {[
-                { icon: Package, title: "Lagerkontroll", desc: "Full oversikt over hva du har i skapet, sortert etter kategori." },
-                { icon: Calendar, title: "Smarte Menyer", desc: "AI-genererte ukesplaner som tar hensyn til det du allerede har." },
-                { icon: ShoppingCart, title: "Handleliste", desc: "Automatiske lister som følger butikkens naturlige flyt." },
-                { icon: BookOpen, title: "Digital Kokebok", desc: "Lagre favorittoppskrifter med bilder og personlige notater." }
+                { icon: Utensils, title: "Smarte Middagsvalg", desc: "Få forslag basert på spesialvarene du faktisk har, kombinert med enkle basisvarer fra nærbutikken din." },
+                { icon: Package, title: "Full Lagerkontroll", desc: "Vit nøyaktig hva du har av krydder og tørrvarer, slik at du aldri kjøper dobbelt eller mangler det viktigste." },
+                { icon: BookOpen, title: "Din Digitale Kokebok", desc: "Samle alle favorittene dine på ett sted. Lagre nye oppskrifter rett fra chatten med ett enkelt klikk." },
+                { icon: ShoppingCart, title: "Smart Handleliste", desc: "Automatiske lister som grupperes etter varekategori for en mest mulig effektiv butikktur." }
               ].map((f, i) => (
                 <div key={i} className="flex flex-col gap-4 p-6 rounded-3xl bg-slate-50 border border-slate-100 hover:shadow-lg hover:shadow-slate-200/50 transition-all">
                   <div className="bg-white w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm border border-slate-100">
