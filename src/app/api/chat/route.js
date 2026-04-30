@@ -70,6 +70,17 @@ const tools = [{
           handleliste: { type: "STRING", description: "En samlet handleliste for hele uken, gjerne i markdown-format" }
         }
       }
+    },
+    {
+      name: "lagre_handleliste",
+      description: "Lagre eller oppdater KUN handlelisten. Bruk denne når brukeren ber deg om å lage en handleliste, uavhengig av om det er for en enkelt middag eller en hel uke.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          handleliste: { type: "STRING", description: "Selve handlelisten i markdown-format" }
+        },
+        required: ["handleliste"]
+      }
     }
   ]
 }];
@@ -104,6 +115,15 @@ async function executeTool(call, supabase, userId) {
     }
     if (name === "lagre_ukesmeny") {
       const payload = { ...args, user_id: userId, oppdatert: new Date().toISOString() };
+      const { data, error } = await supabase
+        .from("ukesmeny")
+        .upsert(payload, { onConflict: 'user_id' })
+        .select();
+      if (error) throw error;
+      return { success: true, added: data };
+    }
+    if (name === "lagre_handleliste") {
+      const payload = { handleliste: args.handleliste, user_id: userId, oppdatert: new Date().toISOString() };
       const { data, error } = await supabase
         .from("ukesmeny")
         .upsert(payload, { onConflict: 'user_id' })
