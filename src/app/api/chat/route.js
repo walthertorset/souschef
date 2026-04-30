@@ -67,7 +67,7 @@ const tools = [{
           fredag: { type: "STRING" },
           lordag: { type: "STRING" },
           sondag: { type: "STRING" },
-          handleliste: { type: "STRING", description: "En samlet handleliste for hele uken, gjerne i markdown-format" }
+          handleliste: { type: "STRING", description: "En samlet handleliste for uken i markdown. VIKTIG: Handlelisten MÅ grupperes etter varekategori (f.eks 'Frukt & Grønt', 'Meieri') slik at det er logisk å handle i butikken." }
         }
       }
     },
@@ -77,7 +77,7 @@ const tools = [{
       parameters: {
         type: "OBJECT",
         properties: {
-          handleliste: { type: "STRING", description: "Selve handlelisten i markdown-format" }
+          handleliste: { type: "STRING", description: "Selve handlelisten i markdown-format. VIKTIG: Den MÅ grupperes etter varekategori (f.eks 'Frukt & Grønt', 'Meieri') slik at det er logisk å handle i butikken." }
         },
         required: ["handleliste"]
       }
