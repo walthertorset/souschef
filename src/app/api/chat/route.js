@@ -56,7 +56,7 @@ const tools = [{
     },
     {
       name: "lagre_ukesmeny",
-      description: "Lagre eller oppdater ukesmenyen for brukeren. Bruk dette når du har foreslått en meny og brukeren er fornøyd, eller hvis brukeren ber deg sette opp menyen. Returner gjerne en oppdatert handleliste i chatten etterpå.",
+      description: "Lagre eller oppdater ukesmenyen for brukeren. Bruk dette når du har foreslått en meny og brukeren er fornøyd, eller hvis brukeren ber deg sette opp menyen. VIKTIG: Hvis det allerede finnes en handleliste (hent den først!), må du MERGE de nye varene inn i den eksisterende listen, med mindre brukeren ber om en helt ny meny.",
       parameters: {
         type: "OBJECT",
         properties: {
@@ -67,20 +67,24 @@ const tools = [{
           fredag: { type: "STRING" },
           lordag: { type: "STRING" },
           sondag: { type: "STRING" },
-          handleliste: { type: "STRING", description: "En samlet handleliste for uken i markdown. VIKTIG: Handlelisten MÅ grupperes etter varekategori (f.eks 'Frukt & Grønt', 'Meieri') slik at det er logisk å handle i butikken." }
+          handleliste: { type: "STRING", description: "En samlet handleliste for uken i markdown. VIKTIG: Handlelisten MÅ grupperes etter varekategori (f.eks 'Frukt & Grønt', 'Meieri') og inneholde kontekst for hvilken rett varen tilhører (f.eks '- 500g Kjøttdeig (til Taco)')." }
         }
       }
     },
     {
       name: "lagre_handleliste",
-      description: "Lagre eller oppdater KUN handlelisten. Bruk denne når brukeren ber deg om å lage en handleliste, uavhengig av om det er for en enkelt middag eller en hel uke.",
+      description: "Lagre eller oppdater KUN handlelisten. Bruk denne når brukeren ber deg om å legge til noe eller oppdatere listen. VIKTIG: Du MÅ hente eksisterende handleliste først og MERGE inn de nye varene slik at ingenting blir slettet.",
       parameters: {
         type: "OBJECT",
         properties: {
-          handleliste: { type: "STRING", description: "Selve handlelisten i markdown-format. VIKTIG: Den MÅ grupperes etter varekategori (f.eks 'Frukt & Grønt', 'Meieri') slik at det er logisk å handle i butikken." }
+          handleliste: { type: "STRING", description: "Selve handlelisten i markdown-format. VIKTIG: Den MÅ grupperes etter varekategori og inneholde kontekst for hvilken rett varen tilhører." }
         },
         required: ["handleliste"]
       }
+    },
+    {
+      name: "hent_ukesmeny",
+      description: "Hent den nåværende ukesmenyen og handlelisten for brukeren. Bruk denne ALLTID før du oppdaterer handlelisten for å sikre at du ikke sletter eksisterende varer."
     },
     {
       name: "slett_fra_lager",
@@ -223,6 +227,11 @@ async function executeTool(call, supabase, userId) {
       if (error) throw error;
       return { success: true };
     }
+    if (name === "hent_ukesmeny") {
+      const { data, error } = await supabase.from("ukesmeny").select("*").eq("user_id", userId).single();
+      if (error && error.code !== "PGRST116") throw error; // Ignorer "ikke funnet" feil
+      return { data: data || null };
+    }
     return { error: `Unknown tool ${name}` };
   } catch (error) {
     return { error: error.message };
@@ -267,12 +276,17 @@ export async function POST(req) {
       model: "gemini-3-flash-preview",
       config: {
         systemInstruction: `Du er Souschef, en AI-kokk. Du hjelper brukeren med matlaging, holder oversikt over spesialvarer/krydder på lageret og lagrer oppskrifter i kokeboken. Svar alltid på Norsk, vær vennlig og formater lister pent. 
-        
+
 Følgende forutsetninger gjelder ALLTID:
 1. Utstyr og Basisvarer: Anta at brukeren har et svært godt utstyrt kjøkken hva angår alle vanlige redskaper og basisvarer (som salt, pepper, vann, stekesmør/olje, sukker, mel, og lignende), selv om dette ikke står spesifikt på lageret.
 2. Varelager og innkjøp: Varelageret inneholder kun krydder, oljer, eddiker og spesialvarer. Når du foreslår oppskrifter, ta utgangspunkt i å bruke disse spesialvarene for å skape smak. Alt annet av ingredienser du foreslår for å fullføre retten MÅ være vanlige varer man får tak i på en standard norsk dagligvarebutikk (som Kiwi eller Rema 1000).
 3. Oppskrifter & Preferanser: Dere foretrekker autentiske måltider, og gjerne sunne varianter i hverdagene. Sorter og merk alltid oppskrifter som 'hverdag' (raskere, mindre effort) eller 'helg' (mer tid/effort). Angi estimert tidsbruk.
-4. Handlelister: Handlelister skal ALLTID sorteres etter hvor varene befinner seg fysisk i en typisk norsk matbutikk (f.eks. Frukt & Grønt, Kjøtt & Fisk, Kjølevare/Mejeri, Tørrvare, Frysevare).
+4. Handlelister & Merging: 
+   - Før du legger til noe i handlelisten, må du ALLTID bruke 'hent_ukesmeny' for å se hva som allerede står der.
+   - Du skal ALDRI slette eksisterende varer i handlelisten med mindre brukeren ber om det. 
+   - Nye varer skal MERGES inn i den eksisterende listen.
+   - Hver vare i handlelisten skal ha kontekst i parentes hvis den tilhører en spesifikk rett, f.eks: "- 500g Kjøttdeig (til Taco)".
+   - Handlelister skal ALLTID sorteres etter hvor varene befinner seg fysisk i en typisk norsk matbutikk (f.eks. Frukt & Grønt, Kjøtt & Fisk, Kjølevare/Mejeri, Tørrvare, Frysevare).
 5. Ukesmenyer: Hvis du blir bedt om å foreslå meny for flere dager eller en hel uke, skal du alltid generere én felles, summert handleliste for hele perioden, som igjen er pent sortert etter butikkavdelinger.
 6. Duplikater på lager: Sjekk alltid hva som allerede finnes på lageret før du legger til nye varer. Hvis brukeren ber deg legge til en ingrediens som allerede finnes (f.eks. Spisskummen), skal du IKKE legge den til på nytt for å unngå duplikater.`,
         tools: tools,
