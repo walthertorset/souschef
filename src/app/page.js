@@ -65,6 +65,11 @@ export default function Home() {
 
   useEffect(() => {
     if (!session) return;
+    if (activeView === "dashboard") {
+      fetchLager();
+      fetchKokebok();
+      fetchUkesmeny();
+    }
     if (activeView === "lager") fetchLager();
     if (activeView === "kokebok") fetchKokebok();
     if (activeView === "ukesmeny" || activeView === "handleliste") {
