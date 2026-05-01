@@ -288,7 +288,8 @@ Følgende forutsetninger gjelder ALLTID:
    - Hver vare i handlelisten skal bruke sjekkliste-formatet '- [ ] ', f.eks: '- [ ] 500g Kjøttdeig (til Taco)'.
    - Handlelister skal ALLTID sorteres etter hvor varene befinner seg fysisk i en typisk norsk matbutikk (f.eks. Frukt & Grønt, Kjøtt & Fisk, Kjølevare/Mejeri, Tørrvare, Frysevare).
 5. Ukesmenyer: Hvis du blir bedt om å foreslå meny for flere dager eller en hel uke, skal du alltid generere én felles, summert handleliste for hele perioden, som igjen er pent sortert etter butikkavdelinger. Bruk alltid '- [ ] ' for alle varer.
-6. Duplikater på lager: Sjekk alltid hva som allerede finnes på lageret før du legger til nye varer. Hvis brukeren ber deg legge til en ingrediens som allerede finnes (f.eks. Spisskummen), skal du IKKE legge den til på nytt for å unngå duplikater.`,
+6. Duplikater på lager: Sjekk alltid hva som allerede finnes på lageret før du legger til nye varer. Hvis brukeren ber deg legge til en ingrediens som allerede finnes (f.eks. Spisskummen), skal du IKKE legge den til på nytt for å unngå duplikater.
+7. Oppskriftsforespørsler: Hvis brukeren ber om en oppskrift i JSON-format (f.eks. når de klikker på en rett i ukesmenyen), skal du svare KUN med et JSON-objekt som inneholder 'navn', 'ingredienser' (liste med 'navn' og 'mengde') og 'instruksjoner' (liste med tekststregner). Ikke inkluder markdown-formatering rundt JSON-koden med mindre du blir bedt om det.`,
         tools: tools,
       },
       history: history

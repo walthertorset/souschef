@@ -41,6 +41,8 @@ export default function Home() {
   const [editingLagerItem, setEditingLagerItem] = useState(null);
   const [isRecipeEditModalOpen, setIsRecipeEditModalOpen] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState(null);
+  const [recipePickerDish, setRecipePickerDish] = useState(null); // For manuelt valg hvis match feiler
+  const [isFetchingRecipe, setIsFetchingRecipe] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -208,24 +210,43 @@ export default function Home() {
   const saveRecipe = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
+    
+    // Parse ingredients
+    const ingredientsText = formData.get("ingredienser") || "";
+    const ingredienser = ingredientsText.split('\n').filter(line => line.trim()).map(line => {
+      const trimmed = line.trim();
+      // Try to match "quantity unit name" or just "quantity name"
+      // Looking for leading numbers/fractions
+      const match = trimmed.match(/^([\d.,/\\\-]+\s*\w+)\s+(.*)$/) || trimmed.match(/^([\d.,/\\\-]+)\s+(.*)$/);
+      if (match) {
+        return { mengde: match[1].trim(), navn: match[2].trim() };
+      }
+      return { mengde: "", navn: trimmed };
+    });
+
+    // Parse instructions
+    const instructionsText = formData.get("instruksjoner") || "";
+    const instruksjoner = instructionsText.split('\n').filter(line => line.trim());
+
     const recipeData = {
       navn: formData.get("navn"),
       kategori: formData.get("kategori"),
       cuisine: formData.get("cuisine"),
       notater: formData.get("notater"),
+      oppskrift: JSON.stringify({ ingredienser, instruksjoner }),
       user_id: session.user.id
     };
 
     if (editingRecipe) {
       const { error } = await supabase.from("kokebok").update(recipeData).eq("id", editingRecipe.id);
       if (!error) {
-        setKokebok(prev => prev.map(r => r.id === editingRecipe.id ? { ...r, ...recipeData } : r));
-        setSelectedRecipe(prev => prev ? { ...prev, ...recipeData } : null);
+        setKokebok(prev => prev.map(r => r.id === editingRecipe.id ? { ...r, ...recipeData, oppskrift: JSON.parse(recipeData.oppskrift) } : r));
+        setSelectedRecipe(prev => prev ? { ...prev, ...recipeData, oppskrift: JSON.parse(recipeData.oppskrift) } : null);
         setIsRecipeEditModalOpen(false);
         setEditingRecipe(null);
       }
     } else {
-      const { data, error } = await supabase.from("kokebok").insert({ ...recipeData, oppskrift: JSON.stringify({ ingredienser: [], instruksjoner: [] }) }).select().single();
+      const { data, error } = await supabase.from("kokebok").insert(recipeData).select().single();
       if (!error) {
         setKokebok(prev => [...prev, data]);
         setIsRecipeEditModalOpen(false);
@@ -309,9 +330,66 @@ export default function Home() {
 
   const handleUkesmenyClick = (dishName) => {
     if (!dishName) return;
-    const foundRecipe = kokebok.find(r => r.navn.toLowerCase().includes(dishName.toLowerCase()) || dishName.toLowerCase().includes(r.navn.toLowerCase()));
-    if (foundRecipe) setSelectedRecipe(foundRecipe);
-    else alert(`Fant ikke "${dishName}" i kokeboken.`);
+    const cleanName = dishName.toLowerCase().trim();
+    const foundRecipe = kokebok.find(r => {
+      const rName = r.navn.toLowerCase().trim();
+      return rName.includes(cleanName) || cleanName.includes(rName);
+    });
+    
+    if (foundRecipe) {
+      setSelectedRecipe(foundRecipe);
+    } else {
+      fetchRecipeDetails(dishName);
+    }
+  };
+
+  const fetchRecipeDetails = async (dishName) => {
+    setIsFetchingRecipe(true);
+    setSelectedRecipe({ navn: dishName, oppskrift: "Henter oppskrift fra Souschef..." });
+    
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ 
+          messages: [
+            { role: "user", content: `Gi meg en detaljert oppskrift på "${dishName}". Svar KUN med selve oppskriften formatert som JSON. Bruk formatet: {"navn": "...", "ingredienser": [{"navn": "...", "mengde": "..."}], "instruksjoner": ["...", "..."]}` }
+          ] 
+        })
+      });
+      
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      
+      const jsonMatch = data.content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[0]);
+          setSelectedRecipe({
+            id: 'temp-' + Date.now(),
+            navn: parsed.navn || dishName,
+            oppskrift: JSON.stringify({
+              ingredienser: parsed.ingredienser || [],
+              instruksjoner: parsed.instruksjoner || []
+            }),
+            is_temporary: true
+          });
+        } catch (e) { throw new Error("Ugyldig JSON-format fra AI"); }
+      } else {
+        setSelectedRecipe({
+          id: 'temp-' + Date.now(),
+          navn: dishName,
+          oppskrift: data.content,
+          is_temporary: true
+        });
+      }
+    } catch (error) {
+      console.error("Fetch error:", error);
+      alert("Kunne ikke hente oppskrift automatisk. Du kan prøve å spørre Souschef i chatten.");
+      setSelectedRecipe(null);
+    } finally {
+      setIsFetchingRecipe(false);
+    }
   };
 
   const toggleHandlelisteItem = async (lineText) => {
@@ -554,12 +632,40 @@ export default function Home() {
         <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-4 py-4 flex items-center justify-between border-b border-slate-100">
           <button onClick={() => setSelectedRecipe(null)} className="p-2 -ml-2 text-slate-600 flex items-center gap-1 font-medium"><ChevronLeft className="w-5 h-5" /> Tilbake</button>
           <div className="flex items-center gap-1">
-            <button onClick={() => { setEditingRecipe(selectedRecipe); setIsRecipeEditModalOpen(true); }} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors"><Edit3 className="w-5 h-5" /></button>
-            <button onClick={() => deleteRecipe(selectedRecipe.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"><Trash2 className="w-5 h-5" /></button>
-            <label className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-full cursor-pointer transition-colors relative">
-              {isUploadingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
-              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, selectedRecipe.id)} disabled={isUploadingImage} />
-            </label>
+            {selectedRecipe.is_temporary ? (
+              <button 
+                onClick={async () => {
+                  let parsed = selectedRecipe.oppskrift;
+                  if (typeof parsed === "string") { try { parsed = JSON.parse(parsed); } catch(e) {} }
+                  const recipeData = {
+                    navn: selectedRecipe.navn,
+                    oppskrift: selectedRecipe.oppskrift,
+                    user_id: session.user.id,
+                    kategori: "hverdag"
+                  };
+                  const { data, error } = await supabase.from("kokebok").insert(recipeData).select().single();
+                  if (!error) {
+                    setKokebok(prev => [...prev, data]);
+                    setSelectedRecipe(data);
+                    alert("Oppskriften er lagret i kokeboken!");
+                  } else {
+                    alert("Feil ved lagring: " + error.message);
+                  }
+                }}
+                className="bg-emerald-600 text-white px-4 py-1.5 rounded-full text-sm font-bold hover:bg-emerald-700 transition-colors flex items-center gap-1.5"
+              >
+                <Save className="w-4 h-4" /> Lagre i kokebok
+              </button>
+            ) : (
+              <>
+                <button onClick={() => { setEditingRecipe(selectedRecipe); setIsRecipeEditModalOpen(true); }} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors"><Edit3 className="w-5 h-5" /></button>
+                <button onClick={() => deleteRecipe(selectedRecipe.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"><Trash2 className="w-5 h-5" /></button>
+                <label className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-full cursor-pointer transition-colors relative">
+                  {isUploadingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, selectedRecipe.id)} disabled={isUploadingImage} />
+                </label>
+              </>
+            )}
           </div>
         </div>
         <div className="w-full h-64 bg-slate-100 relative shrink-0">
@@ -567,7 +673,12 @@ export default function Home() {
         </div>
         <div className="px-5 py-6 max-w-3xl mx-auto w-full">
           <h1 className="text-3xl font-bold text-slate-800 mb-2">{selectedRecipe.navn}</h1>
-          {parsedOppskrift && typeof parsedOppskrift === "object" ? (
+          {isFetchingRecipe ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <Loader2 className="w-10 h-10 animate-spin text-emerald-500" />
+              <p className="text-slate-500 font-medium">Henter detaljer fra Souschef...</p>
+            </div>
+          ) : parsedOppskrift && typeof parsedOppskrift === "object" ? (
             <div className="flex flex-col gap-8 mt-8">
               {parsedOppskrift.ingredienser && (
                 <div>
@@ -588,6 +699,50 @@ export default function Home() {
     );
   };
 
+  const getRecipeForDish = (dishName) => {
+    if (!dishName) return null;
+    const cleanName = dishName.toLowerCase().trim();
+    return kokebok.find(r => {
+      const rName = r.navn.toLowerCase().trim();
+      return rName.includes(cleanName) || cleanName.includes(rName);
+    });
+  };
+
+  const renderRecipePickerModal = () => {
+    if (!recipePickerDish) return null;
+    
+    return (
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+        <div className="bg-white rounded-[32px] w-full max-w-md p-8 shadow-2xl border border-slate-100 flex flex-col max-h-[80vh]">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h3 className="text-xl font-bold text-slate-800">Velg oppskrift</h3>
+              <p className="text-sm text-slate-500 mt-1">Fant ingen automatisk match for "{recipePickerDish}"</p>
+            </div>
+            <button onClick={() => setRecipePickerDish(null)} className="p-2 hover:bg-slate-100 rounded-full"><X className="w-5 h-5" /></button>
+          </div>
+          <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-2">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Alle oppskrifter</p>
+            {kokebok.length === 0 ? (
+              <p className="text-center py-8 text-slate-400">Du har ingen oppskrifter i kokeboken ennå.</p>
+            ) : (
+              kokebok.map(recipe => (
+                <button 
+                  key={recipe.id} 
+                  onClick={() => { setSelectedRecipe(recipe); setRecipePickerDish(null); }}
+                  className="w-full text-left p-4 rounded-2xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50 transition-all flex items-center justify-between group"
+                >
+                  <span className="font-medium text-slate-700">{recipe.navn}</span>
+                  <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-emerald-500 transition-colors" />
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderUkesmeny = () => {
     const dager = ["mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lordag", "sondag"];
     const norskeDager = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"];
@@ -603,13 +758,24 @@ export default function Home() {
         </div>
         {!ukesmeny ? <div className="bg-white p-8 rounded-3xl text-center border border-slate-200"><Calendar className="w-12 h-12 text-slate-300 mx-auto mb-4" /><button onClick={() => navigateTo("chat")} className="bg-emerald-600 text-white px-6 py-2 rounded-full mt-4">Gå til Chat</button></div> : (
           <div className="flex flex-col gap-3 max-w-2xl mx-auto">
-            {dager.map((dag, i) => (
-              <div key={dag} onClick={() => handleUkesmenyClick(ukesmeny[dag])} className={`bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 ${ukesmeny[dag] ? 'cursor-pointer hover:border-emerald-200' : ''}`}>
-                <div className="w-16 text-right shrink-0"><span className="text-sm font-bold text-emerald-600 uppercase tracking-wider">{norskeDager[i].substring(0,3)}</span></div>
-                <div className="w-px h-8 bg-slate-100 shrink-0"></div>
-                <div className="flex-1 min-w-0"><span className="font-medium text-slate-800 truncate block">{ukesmeny[dag] || "Ingen plan"}</span></div>
-              </div>
-            ))}
+            {dager.map((dag, i) => {
+              const dishName = ukesmeny[dag];
+              const recipe = getRecipeForDish(dishName);
+              return (
+                <div key={dag} onClick={() => handleUkesmenyClick(dishName)} className={`bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 transition-all ${dishName ? 'cursor-pointer hover:border-emerald-300 hover:shadow-md group' : 'opacity-60'}`}>
+                  <div className="w-16 text-right shrink-0"><span className="text-sm font-bold text-emerald-600 uppercase tracking-wider">{norskeDager[i].substring(0,3)}</span></div>
+                  <div className="w-px h-8 bg-slate-100 shrink-0"></div>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-semibold text-slate-800 truncate block">{dishName || "Ingen plan"}</span>
+                  </div>
+                  {dishName && (
+                    <div className={`p-2 rounded-xl transition-colors ${recipe ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400 group-hover:text-emerald-500'}`}>
+                      {recipe ? <BookOpen className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -845,6 +1011,7 @@ export default function Home() {
           </>
         )}
         {renderRecipeModal()}
+        {renderRecipePickerModal()}
 
         {/* Lager Modal */}
         {isLagerModalOpen && (
@@ -883,7 +1050,7 @@ export default function Home() {
         {/* Recipe Edit Modal */}
         {isRecipeEditModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-            <div className="bg-white rounded-[32px] w-full max-w-md p-8 shadow-2xl border border-slate-100">
+            <div className="bg-white rounded-[32px] w-full max-w-md p-8 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold text-slate-800">{editingRecipe ? "Rediger oppskrift" : "Ny oppskrift"}</h3>
                 <button onClick={() => setIsRecipeEditModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full"><X className="w-5 h-5" /></button>
@@ -906,9 +1073,46 @@ export default function Home() {
                     <input name="cuisine" defaultValue={editingRecipe?.cuisine} placeholder="f.eks. Italiensk" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50" />
                   </div>
                 </div>
+                
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Ingredienser (én per linje)</label>
+                  <textarea 
+                    name="ingredienser" 
+                    defaultValue={(() => {
+                      if (!editingRecipe?.oppskrift) return '';
+                      let parsed = editingRecipe.oppskrift;
+                      if (typeof parsed === 'string') {
+                        try { parsed = JSON.parse(parsed); } catch(e) { return ''; }
+                      }
+                      return parsed.ingredienser?.map(i => `${i.mengde || ''} ${i.navn || ''}`.trim()).join('\n') || '';
+                    })()} 
+                    rows={5} 
+                    placeholder="f.eks.&#10;2 stk Løk&#10;500 g Kylling"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50 resize-none" 
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Fremgangsmåte (ett steg per linje)</label>
+                  <textarea 
+                    name="instruksjoner" 
+                    defaultValue={(() => {
+                      if (!editingRecipe?.oppskrift) return '';
+                      let parsed = editingRecipe.oppskrift;
+                      if (typeof parsed === 'string') {
+                        try { parsed = JSON.parse(parsed); } catch(e) { return typeof parsed === 'string' ? parsed : ''; }
+                      }
+                      return parsed.instruksjoner?.join('\n') || '';
+                    })()} 
+                    rows={5} 
+                    placeholder="f.eks.&#10;Stek løken til den er mør&#10;Tilsett kylling og brun godt"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50 resize-none" 
+                  />
+                </div>
+
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Notater</label>
-                  <textarea name="notater" defaultValue={editingRecipe?.notater} rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50 resize-none" />
+                  <textarea name="notater" defaultValue={editingRecipe?.notater} rows={2} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50 resize-none" />
                 </div>
                 <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 mt-2">
                   <Save className="w-5 h-5" />
