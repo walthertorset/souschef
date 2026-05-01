@@ -79,7 +79,7 @@ export default function Home() {
   }, [activeView, session]);
 
   const fetchChats = async (userId) => {
-    const { data } = await supabase.from("chats").select("*").eq("user_id", userId).order("created_at", { ascending: false });
+    const { data } = await supabase.from("chats").select("*").eq("user_id", userId).order("updated_at", { ascending: false });
     if (data) setChats(data);
   };
 
@@ -264,7 +264,19 @@ export default function Home() {
     setMessages(prev => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
-    if (currentChatId) await supabase.from("messages").insert({ chat_id: currentChatId, role: "user", content: userMessage.content });
+    if (currentChatId) {
+      setChats(prev => {
+        const chatIndex = prev.findIndex(c => c.id === currentChatId);
+        if (chatIndex > 0) {
+          const newChats = [...prev];
+          const [chat] = newChats.splice(chatIndex, 1);
+          return [chat, ...newChats];
+        }
+        return prev;
+      });
+      await supabase.from("chats").update({ updated_at: new Date().toISOString() }).eq("id", currentChatId);
+      await supabase.from("messages").insert({ chat_id: currentChatId, role: "user", content: userMessage.content });
+    }
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
