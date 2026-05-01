@@ -233,6 +233,16 @@ export default function Home() {
     }
   };
 
+  const deleteUkesmeny = async () => {
+    if (!confirm("Er du sikker på at du vil fjerne hele ukesmenyen og handlelisten?")) return;
+    const { error } = await supabase.from("ukesmeny").delete().eq("user_id", session.user.id);
+    if (!error) {
+      setUkesmeny(null);
+    } else {
+      alert("Feil ved sletting: " + error.message);
+    }
+  };
+
   const scrollToLogin = () => {
     loginRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -531,7 +541,14 @@ export default function Home() {
     const norskeDager = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"];
     return (
       <div className="flex-1 overflow-y-auto px-4 py-6 bg-slate-50 pb-20">
-        <h2 className="text-2xl font-bold text-slate-800 mb-6">Din Ukesmeny</h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-slate-800">Din Ukesmeny</h2>
+          {ukesmeny && (
+            <button onClick={deleteUkesmeny} className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-xl transition-colors text-sm font-semibold">
+              <Trash2 className="w-4 h-4" /> Nullstill
+            </button>
+          )}
+        </div>
         {!ukesmeny ? <div className="bg-white p-8 rounded-3xl text-center border border-slate-200"><Calendar className="w-12 h-12 text-slate-300 mx-auto mb-4" /><button onClick={() => navigateTo("chat")} className="bg-emerald-600 text-white px-6 py-2 rounded-full mt-4">Gå til Chat</button></div> : (
           <div className="flex flex-col gap-3 max-w-2xl mx-auto">
             {dager.map((dag, i) => (
@@ -549,7 +566,14 @@ export default function Home() {
 
   const renderHandleliste = () => (
     <div className="flex-1 overflow-y-auto px-4 py-6 bg-slate-50 pb-20">
-      <h2 className="text-2xl font-bold text-slate-800 mb-6">Handleliste</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-slate-800">Handleliste</h2>
+        {ukesmeny && ukesmeny.handleliste && (
+          <button onClick={deleteUkesmeny} className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-xl transition-colors text-sm font-semibold">
+            <Trash2 className="w-4 h-4" /> Nullstill
+          </button>
+        )}
+      </div>
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 max-w-2xl mx-auto">
         {ukesmeny && ukesmeny.handleliste ? <ReactMarkdown className="prose prose-emerald">{ukesmeny.handleliste}</ReactMarkdown> : <div className="text-center py-10"><ShoppingCart className="w-12 h-12 text-slate-300 mx-auto mb-4" /><p className="text-slate-500">Tom handleliste.</p></div>}
       </div>

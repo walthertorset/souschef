@@ -143,6 +143,10 @@ const tools = [{
         },
         required: ["id", "data"]
       }
+    },
+    {
+      name: "nullstill_ukesmeny",
+      description: "Slett ukesmenyen og handlelisten helt. Bruk denne hvis brukeren vil fjerne planen sin eller starte på nytt."
     }
   ]
 }];
@@ -216,6 +220,11 @@ async function executeTool(call, supabase, userId) {
       const { data, error } = await supabase.from("kokebok").update(updateData).eq("id", args.id).eq("user_id", userId).select();
       if (error) throw error;
       return { success: true, updated: data };
+    }
+    if (name === "nullstill_ukesmeny") {
+      const { error } = await supabase.from("ukesmeny").delete().eq("user_id", userId);
+      if (error) throw error;
+      return { success: true };
     }
     return { error: `Unknown tool ${name}` };
   } catch (error) {
