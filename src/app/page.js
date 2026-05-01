@@ -79,14 +79,19 @@ export default function Home() {
   }, [activeView, session]);
 
   const fetchChats = async (userId) => {
-    const { data, error } = await supabase.from("chats").select("*").eq("user_id", userId).order("updated_at", { ascending: false });
+    const { data, error } = await supabase.from("chats").select("*").eq("user_id", userId);
     
-    if (error) {
-      console.warn("Klarte ikke sortere på updated_at (kanskje kolonnen mangler?), prøver created_at isteden:", error.message);
-      const { data: fallbackData } = await supabase.from("chats").select("*").eq("user_id", userId).order("created_at", { ascending: false });
-      if (fallbackData) setChats(fallbackData);
-    } else if (data) {
-      setChats(data);
+    if (data && data.length > 0) {
+      console.log("Chat columns found:", Object.keys(data[0]));
+      // Prøv å sortere manuelt i JS hvis vi er usikre på kolonnenavn
+      const sorted = [...data].sort((a, b) => {
+        const dateA = new Date(a.updated_at || a.created_at || 0);
+        const dateB = new Date(b.updated_at || b.created_at || 0);
+        return dateB - dateA;
+      });
+      setChats(sorted);
+    } else if (error) {
+      console.error("Feil ved henting av chatter:", error.message);
     }
   };
 
