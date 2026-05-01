@@ -317,6 +317,29 @@ export default function Home() {
     else alert(`Fant ikke "${dishName}" i kokeboken.`);
   };
 
+  const toggleHandlelisteItem = async (lineContent) => {
+    if (!ukesmeny || !ukesmeny.handleliste) return;
+    
+    const lines = ukesmeny.handleliste.split('\n');
+    const newLines = lines.map(line => {
+      // Vi matcher på innholdet i linjen, men fjerner markdown-syntaksen for sammenligning
+      const cleanLine = line.replace(/^- (\[[ x]\] )?/, '').trim();
+      const cleanTarget = lineContent.replace(/^- (\[[ x]\] )?/, '').trim();
+      
+      if (cleanLine === cleanTarget && line.trim().startsWith('-')) {
+        if (line.includes('[ ]')) return line.replace('[ ]', '[x]');
+        if (line.includes('[x]')) return line.replace('[x]', '[ ]');
+        if (line.startsWith('- ')) return line.replace('- ', '- [x] ');
+      }
+      return line;
+    });
+    
+    const newHandleliste = newLines.join('\n');
+    setUkesmeny(prev => ({ ...prev, handleliste: newHandleliste }));
+    
+    await supabase.from("ukesmeny").update({ handleliste: newHandleliste, oppdatert: new Date().toISOString() }).eq("user_id", session.user.id);
+  };
+
   if (!session) {
     return (
       <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-emerald-100 scroll-smooth">
@@ -602,7 +625,39 @@ export default function Home() {
         )}
       </div>
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 max-w-2xl mx-auto">
-        {ukesmeny && ukesmeny.handleliste ? <ReactMarkdown className="prose prose-emerald">{ukesmeny.handleliste}</ReactMarkdown> : <div className="text-center py-10"><ShoppingCart className="w-12 h-12 text-slate-300 mx-auto mb-4" /><p className="text-slate-500">Tom handleliste.</p></div>}
+        {ukesmeny && ukesmeny.handleliste ? (
+          <ReactMarkdown 
+            className="prose prose-emerald max-w-none"
+            components={{
+              li: ({ children, ...props }) => {
+                // Hent tekstinnholdet for å kunne matche det i toggle-funksjonen
+                const content = children.map(child => typeof child === 'string' ? child : (child.props?.children || '')).join('');
+                const isChecked = ukesmeny.handleliste.includes(`[x] ${content.trim()}`);
+                const hasCheckbox = ukesmeny.handleliste.includes(`[ ] ${content.trim()}`) || isChecked;
+
+                return (
+                  <li className="list-none flex items-start gap-3 py-1 cursor-pointer group" onClick={() => toggleHandlelisteItem(content)}>
+                    <div className={`mt-1 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${isChecked ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 group-hover:border-emerald-400'}`}>
+                      {isChecked && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                    </div>
+                    <span className={`text-[15px] transition-all ${isChecked ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                      {children}
+                    </span>
+                  </li>
+                );
+              },
+              ul: ({ children }) => <ul className="pl-0 space-y-1">{children}</ul>,
+              h3: ({ children }) => <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-8 mb-3 first:mt-0">{children}</h3>
+            }}
+          >
+            {ukesmeny.handleliste}
+          </ReactMarkdown>
+        ) : (
+          <div className="text-center py-10">
+            <ShoppingCart className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+            <p className="text-slate-500">Tom handleliste.</p>
+          </div>
+        )}
       </div>
     </div>
   );

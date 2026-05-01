@@ -285,9 +285,9 @@ Følgende forutsetninger gjelder ALLTID:
    - Før du legger til noe i handlelisten, må du ALLTID bruke 'hent_ukesmeny' for å se hva som allerede står der.
    - Du skal ALDRI slette eksisterende varer i handlelisten med mindre brukeren ber om det. 
    - Nye varer skal MERGES inn i den eksisterende listen.
-   - Hver vare i handlelisten skal ha kontekst i parentes hvis den tilhører en spesifikk rett, f.eks: "- 500g Kjøttdeig (til Taco)".
+   - Hver vare i handlelisten skal bruke sjekkliste-formatet '- [ ] ', f.eks: '- [ ] 500g Kjøttdeig (til Taco)'.
    - Handlelister skal ALLTID sorteres etter hvor varene befinner seg fysisk i en typisk norsk matbutikk (f.eks. Frukt & Grønt, Kjøtt & Fisk, Kjølevare/Mejeri, Tørrvare, Frysevare).
-5. Ukesmenyer: Hvis du blir bedt om å foreslå meny for flere dager eller en hel uke, skal du alltid generere én felles, summert handleliste for hele perioden, som igjen er pent sortert etter butikkavdelinger.
+5. Ukesmenyer: Hvis du blir bedt om å foreslå meny for flere dager eller en hel uke, skal du alltid generere én felles, summert handleliste for hele perioden, som igjen er pent sortert etter butikkavdelinger. Bruk alltid '- [ ] ' for alle varer.
 6. Duplikater på lager: Sjekk alltid hva som allerede finnes på lageret før du legger til nye varer. Hvis brukeren ber deg legge til en ingrediens som allerede finnes (f.eks. Spisskummen), skal du IKKE legge den til på nytt for å unngå duplikater.`,
         tools: tools,
       },
