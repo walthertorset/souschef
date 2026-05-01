@@ -314,19 +314,24 @@ export default function Home() {
     else alert(`Fant ikke "${dishName}" i kokeboken.`);
   };
 
-  const toggleHandlelisteItem = async (lineContent) => {
+  const toggleHandlelisteItem = async (lineText) => {
     if (!ukesmeny || !ukesmeny.handleliste) return;
+    
+    // Rens teksten vi fikk inn for å matche nøyaktig med det som står etter '- [ ] ' eller liknende
+    const targetText = lineText.replace(/^\[[ x]\]\s*/, '').trim();
     
     const lines = ukesmeny.handleliste.split('\n');
     const newLines = lines.map(line => {
-      // Vi matcher på innholdet i linjen, men fjerner markdown-syntaksen for sammenligning
-      const cleanLine = line.replace(/^- (\[[ x]\] )?/, '').trim();
-      const cleanTarget = lineContent.replace(/^- (\[[ x]\] )?/, '').trim();
+      const trimmedLine = line.trim();
+      if (!trimmedLine.startsWith('-')) return line;
       
-      if (cleanLine === cleanTarget && line.trim().startsWith('-')) {
+      const cleanLineText = trimmedLine.replace(/^- (\[[ x]\] )?/, '').trim();
+      
+      if (cleanLineText === targetText) {
         if (line.includes('[ ]')) return line.replace('[ ]', '[x]');
         if (line.includes('[x]')) return line.replace('[x]', '[ ]');
-        if (line.startsWith('- ')) return line.replace('- ', '- [x] ');
+        // Hvis ingen boks finnes, legg til en som er krysset av
+        return line.replace(/^- /, '- [x] ');
       }
       return line;
     });
@@ -627,23 +632,27 @@ export default function Home() {
             className="prose prose-emerald max-w-none"
             components={{
               li: ({ children, ...props }) => {
-                // Hent tekstinnholdet for å kunne matche det i toggle-funksjonen
                 const childrenArray = Array.isArray(children) ? children : [children];
-                const content = childrenArray.map(child => typeof child === 'string' ? child : (child.props?.children || '')).join('');
-                const isChecked = ukesmeny.handleliste.includes(`[x] ${content.trim()}`);
-                const hasCheckbox = ukesmeny.handleliste.includes(`[ ] ${content.trim()}`) || isChecked;
+                // Hent råtekst for matching
+                const rawText = childrenArray.map(child => typeof child === 'string' ? child : (child.props?.children || '')).join('');
+                // Rens teksten for eventuelle [ ] eller [x] som ligger i markdown-noden
+                const cleanText = rawText.replace(/^\[[ x]\]\s*/, '').trim();
+                
+                // Sjekk om denne spesifikke linjen er markert som ferdig i markdown-strengen
+                const isChecked = ukesmeny.handleliste.split('\n').some(line => 
+                  line.trim().startsWith('-') && 
+                  line.includes('[x]') && 
+                  line.replace(/^- (\[[ x]\] )?/, '').trim() === cleanText
+                );
 
                 return (
-                  <li className="list-none flex items-start gap-3 py-1 cursor-pointer group" onClick={() => toggleHandlelisteItem(content)}>
-                    <div className={`mt-1 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${isChecked ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 group-hover:border-emerald-400'}`}>
+                  <li className="list-none flex items-start gap-3 py-1.5 cursor-pointer group" onClick={() => toggleHandlelisteItem(cleanText)}>
+                    <div className={`mt-1 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${isChecked ? 'bg-emerald-500 border-emerald-500 shadow-sm' : 'border-slate-300 group-hover:border-emerald-400 bg-white'}`}>
                       {isChecked && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
                     </div>
-                    <span className={`text-[15px] transition-all ${isChecked ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                    <span className={`text-[15px] transition-all leading-relaxed ${isChecked ? 'text-slate-400 line-through' : 'text-slate-700 font-medium'}`}>
                       {childrenArray.map((child, idx) => {
-                        if (typeof child === 'string') {
-                          return child.replace(/^\[[ x]\]\s*/, '');
-                        }
-                        // Hvis barnet har egne barn (f.eks. fet skrift), prøv å rense dem også
+                        if (typeof child === 'string') return child.replace(/^\[[ x]\]\s*/, '');
                         if (child.props?.children && typeof child.props.children === 'string') {
                           return { ...child, props: { ...child.props, children: child.props.children.replace(/^\[[ x]\]\s*/, '') } };
                         }
