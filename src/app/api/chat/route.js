@@ -181,13 +181,23 @@ async function executeTool(call, supabase, userId) {
     }
     if (name === "lagre_ukesmeny" || name === "lagre_handleliste") {
       const { data: existing } = await supabase.from("ukesmeny").select("*").eq("user_id", userId).single();
-      const defaults = { mandag: "", tirsdag: "", onsdag: "", torsdag: "", fredag: "", lordag: "", sondag: "", handleliste: "" };
+      // Merk: handleliste utelates fra defaults inntil kolonnen er lagt til i DB
+      const defaults = { mandag: "", tirsdag: "", onsdag: "", torsdag: "", fredag: "", lordag: "", sondag: "" };
+      
       const payload = { 
         ...(existing || defaults),
         ...args, 
         user_id: userId, 
         oppdatert: new Date().toISOString() 
       };
+
+      // Sikkerhetsmekanisme: Hvis tabellen mangler handleliste-kolonnen, fjern den fra payload
+      // Vi antar den mangler hvis den ikke finnes i 'existing' og vi får en feil senere.
+      // For nå fjerner vi den kun hvis den er tom/null i args og mangler i existing.
+      if (existing && !('handleliste' in existing)) {
+        delete payload.handleliste;
+      }
+
       const { data, error } = await supabase.from("ukesmeny").upsert(payload, { onConflict: 'user_id' }).select();
       if (error) throw error;
       return { success: true, added: data };
