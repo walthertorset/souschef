@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, ChefHat, Loader2, Menu, X, Plus, MessageSquare, LogOut, Package, BookOpen, Calendar, ShoppingCart, ChevronLeft, Camera, Image as ImageIcon, ChevronDown, CheckCircle2, Star, Utensils, Clock, ArrowRight, LayoutDashboard, Sparkles, Zap, ArrowUpRight } from "lucide-react";
+import { Send, ChefHat, Loader2, Menu, X, Plus, MessageSquare, LogOut, Package, BookOpen, Calendar, ShoppingCart, ChevronLeft, Camera, Image as ImageIcon, ChevronDown, CheckCircle2, Star, Utensils, Clock, ArrowRight, LayoutDashboard, Sparkles, Zap, ArrowUpRight, Trash2, Edit3, Save, Check } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -35,6 +35,12 @@ export default function Home() {
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [recipeSortOrder, setRecipeSortOrder] = useState("newest"); // 'newest', 'oldest'
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  
+  // CRUD UI State
+  const [isLagerModalOpen, setIsLagerModalOpen] = useState(false);
+  const [editingLagerItem, setEditingLagerItem] = useState(null);
+  const [isRecipeEditModalOpen, setIsRecipeEditModalOpen] = useState(false);
+  const [editingRecipe, setEditingRecipe] = useState(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -147,6 +153,78 @@ export default function Home() {
       alert("Feil ved opplasting.");
     } finally {
       setIsUploadingImage(false);
+    }
+  };
+
+  // CRUD Functions - Lager
+  const saveLagerItem = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const itemData = {
+      navn: formData.get("navn"),
+      mengde: formData.get("mengde"),
+      kategori: formData.get("kategori"),
+      notat: formData.get("notat"),
+      user_id: session.user.id
+    };
+
+    if (editingLagerItem) {
+      const { error } = await supabase.from("lager").update(itemData).eq("id", editingLagerItem.id);
+      if (!error) {
+        setLager(prev => prev.map(item => item.id === editingLagerItem.id ? { ...item, ...itemData } : item));
+        setIsLagerModalOpen(false);
+        setEditingLagerItem(null);
+      }
+    } else {
+      const { data, error } = await supabase.from("lager").insert(itemData).select().single();
+      if (!error) {
+        setLager(prev => [...prev, data]);
+        setIsLagerModalOpen(false);
+      }
+    }
+  };
+
+  const deleteLagerItem = async (id) => {
+    if (!confirm("Er du sikker på at du vil slette denne varen?")) return;
+    const { error } = await supabase.from("lager").delete().eq("id", id);
+    if (!error) setLager(prev => prev.filter(item => item.id !== id));
+  };
+
+  // CRUD Functions - Kokebok
+  const saveRecipe = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const recipeData = {
+      navn: formData.get("navn"),
+      kategori: formData.get("kategori"),
+      cuisine: formData.get("cuisine"),
+      notater: formData.get("notater"),
+      user_id: session.user.id
+    };
+
+    if (editingRecipe) {
+      const { error } = await supabase.from("kokebok").update(recipeData).eq("id", editingRecipe.id);
+      if (!error) {
+        setKokebok(prev => prev.map(r => r.id === editingRecipe.id ? { ...r, ...recipeData } : r));
+        setSelectedRecipe(prev => prev ? { ...prev, ...recipeData } : null);
+        setIsRecipeEditModalOpen(false);
+        setEditingRecipe(null);
+      }
+    } else {
+      const { data, error } = await supabase.from("kokebok").insert({ ...recipeData, oppskrift: JSON.stringify({ ingredienser: [], instruksjoner: [] }) }).select().single();
+      if (!error) {
+        setKokebok(prev => [...prev, data]);
+        setIsRecipeEditModalOpen(false);
+      }
+    }
+  };
+
+  const deleteRecipe = async (id) => {
+    if (!confirm("Er du sikker på at du vil slette denne oppskriften?")) return;
+    const { error } = await supabase.from("kokebok").delete().eq("id", id);
+    if (!error) {
+      setKokebok(prev => prev.filter(r => r.id !== id));
+      setSelectedRecipe(null);
     }
   };
 
@@ -312,7 +390,12 @@ export default function Home() {
     }, {});
     return (
       <div className="flex-1 overflow-y-auto px-4 py-6 bg-slate-50 pb-20">
-        <h2 className="text-2xl font-bold text-slate-800 mb-6">Ditt Lager</h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-slate-800">Ditt Lager</h2>
+          <button onClick={() => { setEditingLagerItem(null); setIsLagerModalOpen(true); }} className="bg-emerald-600 text-white p-2 rounded-full hover:bg-emerald-700 transition-colors">
+            <Plus className="w-5 h-5" />
+          </button>
+        </div>
         {isDataLoading ? <Loader2 className="w-6 h-6 animate-spin text-emerald-500 mx-auto" /> : (
           <div className="flex flex-col gap-8">
             {Object.keys(groupedLager).sort().map(category => (
@@ -322,7 +405,11 @@ export default function Home() {
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                   {groupedLager[category].map(item => (
-                    <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                    <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 group relative">
+                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => { setEditingLagerItem(item); setIsLagerModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Edit3 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => deleteLagerItem(item.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
                       <h4 className="font-semibold text-slate-800 capitalize text-sm">{item.navn}</h4>
                       <p className="text-xs text-slate-500 mt-1">{item.mengde}</p>
                       {item.notat && <p className="text-[11px] text-slate-400 mt-2 bg-slate-50 p-1.5 rounded">{item.notat}</p>}
@@ -351,12 +438,17 @@ export default function Home() {
     }, {});
     return (
       <div className="flex-1 overflow-y-auto px-4 py-6 bg-slate-50 pb-20 relative">
-        <div className="flex justify-between items-end mb-6">
+        <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-slate-800">Din Kokebok</h2>
-          <select value={recipeSortOrder} onChange={e => setRecipeSortOrder(e.target.value)} className="bg-white border border-slate-200 text-sm rounded-lg px-3 py-1.5">
-            <option value="newest">Nyeste først</option>
-            <option value="oldest">Eldste først</option>
-          </select>
+          <div className="flex items-center gap-3">
+            <select value={recipeSortOrder} onChange={e => setRecipeSortOrder(e.target.value)} className="bg-white border border-slate-200 text-sm rounded-lg px-3 py-1.5">
+              <option value="newest">Nyeste først</option>
+              <option value="oldest">Eldste først</option>
+            </select>
+            <button onClick={() => { setEditingRecipe(null); setIsRecipeEditModalOpen(true); }} className="bg-emerald-600 text-white p-2 rounded-full hover:bg-emerald-700 transition-colors">
+              <Plus className="w-5 h-5" />
+            </button>
+          </div>
         </div>
         {isDataLoading ? <Loader2 className="w-6 h-6 animate-spin text-emerald-500 mx-auto" /> : (
           <div className="flex flex-col gap-8">
@@ -394,10 +486,14 @@ export default function Home() {
       <div className="fixed inset-0 z-50 bg-white overflow-y-auto flex flex-col">
         <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-4 py-4 flex items-center justify-between border-b border-slate-100">
           <button onClick={() => setSelectedRecipe(null)} className="p-2 -ml-2 text-slate-600 flex items-center gap-1 font-medium"><ChevronLeft className="w-5 h-5" /> Tilbake</button>
-          <label className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-full cursor-pointer transition-colors relative">
-            {isUploadingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
-            <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, selectedRecipe.id)} disabled={isUploadingImage} />
-          </label>
+          <div className="flex items-center gap-1">
+            <button onClick={() => { setEditingRecipe(selectedRecipe); setIsRecipeEditModalOpen(true); }} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors"><Edit3 className="w-5 h-5" /></button>
+            <button onClick={() => deleteRecipe(selectedRecipe.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"><Trash2 className="w-5 h-5" /></button>
+            <label className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-full cursor-pointer transition-colors relative">
+              {isUploadingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, selectedRecipe.id)} disabled={isUploadingImage} />
+            </label>
+          </div>
         </div>
         <div className="w-full h-64 bg-slate-100 relative shrink-0">
           {selectedRecipe.image_url ? <img src={selectedRecipe.image_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-2"><ImageIcon className="w-12 h-12 opacity-50" /></div>}
@@ -622,6 +718,79 @@ export default function Home() {
           </>
         )}
         {renderRecipeModal()}
+
+        {/* Lager Modal */}
+        {isLagerModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <div className="bg-white rounded-[32px] w-full max-w-md p-8 shadow-2xl border border-slate-100">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-slate-800">{editingLagerItem ? "Rediger vare" : "Legg til vare"}</h3>
+                <button onClick={() => setIsLagerModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full"><X className="w-5 h-5" /></button>
+              </div>
+              <form onSubmit={saveLagerItem} className="flex flex-col gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Navn</label>
+                  <input name="navn" defaultValue={editingLagerItem?.navn} required className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Mengde</label>
+                  <input name="mengde" defaultValue={editingLagerItem?.mengde} placeholder="f.eks. 1 stk, 500g" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Kategori</label>
+                  <input name="kategori" defaultValue={editingLagerItem?.kategori} placeholder="f.eks. Krydder, Meieri" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Notat</label>
+                  <textarea name="notat" defaultValue={editingLagerItem?.notat} rows={2} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50 resize-none" />
+                </div>
+                <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 mt-2">
+                  <Save className="w-5 h-5" />
+                  {editingLagerItem ? "Lagre endringer" : "Legg til i lager"}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Recipe Edit Modal */}
+        {isRecipeEditModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <div className="bg-white rounded-[32px] w-full max-w-md p-8 shadow-2xl border border-slate-100">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-slate-800">{editingRecipe ? "Rediger oppskrift" : "Ny oppskrift"}</h3>
+                <button onClick={() => setIsRecipeEditModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full"><X className="w-5 h-5" /></button>
+              </div>
+              <form onSubmit={saveRecipe} className="flex flex-col gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Navn</label>
+                  <input name="navn" defaultValue={editingRecipe?.navn} required className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Kategori</label>
+                    <select name="kategori" defaultValue={editingRecipe?.kategori || "hverdag"} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50">
+                      <option value="hverdag">Hverdag</option>
+                      <option value="helg">Helg</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Kjøkken</label>
+                    <input name="cuisine" defaultValue={editingRecipe?.cuisine} placeholder="f.eks. Italiensk" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Notater</label>
+                  <textarea name="notater" defaultValue={editingRecipe?.notater} rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50 resize-none" />
+                </div>
+                <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 mt-2">
+                  <Save className="w-5 h-5" />
+                  {editingRecipe ? "Oppdater oppskrift" : "Opprett oppskrift"}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );

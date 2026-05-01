@@ -81,6 +81,68 @@ const tools = [{
         },
         required: ["handleliste"]
       }
+    },
+    {
+      name: "slett_fra_lager",
+      description: "Slett en vare fra lageret basert på dens ID. Du må hente lageret først for å vite ID-en.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          id: { type: "STRING", description: "ID-en til varen som skal slettes" }
+        },
+        required: ["id"]
+      }
+    },
+    {
+      name: "oppdater_lager_vare",
+      description: "Oppdater informasjon om en eksisterende vare på lageret.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          id: { type: "STRING", description: "ID-en til varen som skal oppdateres" },
+          data: {
+            type: "OBJECT",
+            properties: {
+              navn: { type: "STRING" },
+              kategori: { type: "STRING" },
+              mengde: { type: "STRING" },
+              notat: { type: "STRING" }
+            }
+          }
+        },
+        required: ["id", "data"]
+      }
+    },
+    {
+      name: "slett_oppskrift",
+      description: "Slett en oppskrift fra kokeboken basert på dens ID.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          id: { type: "STRING", description: "ID-en til oppskriften som skal slettes" }
+        },
+        required: ["id"]
+      }
+    },
+    {
+      name: "oppdater_oppskrift",
+      description: "Oppdater en eksisterende oppskrift i kokeboken.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          id: { type: "STRING", description: "ID-en til oppskriften som skal oppdateres" },
+          data: {
+            type: "OBJECT",
+            properties: {
+              navn: { type: "STRING" },
+              kategori: { type: "STRING" },
+              cuisine: { type: "STRING" },
+              oppskrift: { type: "STRING", description: "Oppskriftsdata som JSON streng" }
+            }
+          }
+        },
+        required: ["id", "data"]
+      }
     }
   ]
 }];
@@ -130,6 +192,30 @@ async function executeTool(call, supabase, userId) {
         .select();
       if (error) throw error;
       return { success: true, added: data };
+    }
+    if (name === "slett_fra_lager") {
+      const { error } = await supabase.from("lager").delete().eq("id", args.id).eq("user_id", userId);
+      if (error) throw error;
+      return { success: true };
+    }
+    if (name === "oppdater_lager_vare") {
+      const { data, error } = await supabase.from("lager").update(args.data).eq("id", args.id).eq("user_id", userId).select();
+      if (error) throw error;
+      return { success: true, updated: data };
+    }
+    if (name === "slett_oppskrift") {
+      const { error } = await supabase.from("kokebok").delete().eq("id", args.id).eq("user_id", userId);
+      if (error) throw error;
+      return { success: true };
+    }
+    if (name === "oppdater_oppskrift") {
+      let updateData = { ...args.data };
+      if (updateData.oppskrift && typeof updateData.oppskrift === "string") {
+        try { updateData.oppskrift = JSON.parse(updateData.oppskrift); } catch(e) {}
+      }
+      const { data, error } = await supabase.from("kokebok").update(updateData).eq("id", args.id).eq("user_id", userId).select();
+      if (error) throw error;
+      return { success: true, updated: data };
     }
     return { error: `Unknown tool ${name}` };
   } catch (error) {
