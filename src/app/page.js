@@ -628,7 +628,8 @@ export default function Home() {
             components={{
               li: ({ children, ...props }) => {
                 // Hent tekstinnholdet for å kunne matche det i toggle-funksjonen
-                const content = children.map(child => typeof child === 'string' ? child : (child.props?.children || '')).join('');
+                const childrenArray = Array.isArray(children) ? children : [children];
+                const content = childrenArray.map(child => typeof child === 'string' ? child : (child.props?.children || '')).join('');
                 const isChecked = ukesmeny.handleliste.includes(`[x] ${content.trim()}`);
                 const hasCheckbox = ukesmeny.handleliste.includes(`[ ] ${content.trim()}`) || isChecked;
 
