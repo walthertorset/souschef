@@ -79,11 +79,10 @@ export default function Home() {
   }, [activeView, session]);
 
   const fetchChats = async (userId) => {
+    // Vi prøver å hente begge, men sorterer på created_at som fallback
     const { data, error } = await supabase.from("chats").select("*").eq("user_id", userId);
     
-    if (data && data.length > 0) {
-      console.log("Chat columns found:", Object.keys(data[0]));
-      // Prøv å sortere manuelt i JS hvis vi er usikre på kolonnenavn
+    if (data) {
       const sorted = [...data].sort((a, b) => {
         const dateA = new Date(a.updated_at || a.created_at || 0);
         const dateB = new Date(b.updated_at || b.created_at || 0);
