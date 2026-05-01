@@ -11,11 +11,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport = {
+  themeColor: "#059669",
+};
+
 export const metadata = {
   title: "Souschef - Din AI-kokk",
   description: "Planlegg middager basert på det du har i skapet.",
   manifest: "/manifest.json",
-  themeColor: "#059669",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
