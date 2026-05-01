@@ -79,16 +79,14 @@ export default function Home() {
   }, [activeView, session]);
 
   const fetchChats = async (userId) => {
-    // Vi prøver å hente begge, men sorterer på created_at som fallback
-    const { data, error } = await supabase.from("chats").select("*").eq("user_id", userId);
+    const { data, error } = await supabase
+      .from("chats")
+      .select("*")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false });
     
     if (data) {
-      const sorted = [...data].sort((a, b) => {
-        const dateA = new Date(a.updated_at || a.created_at || 0);
-        const dateB = new Date(b.updated_at || b.created_at || 0);
-        return dateB - dateA;
-      });
-      setChats(sorted);
+      setChats(data);
     } else if (error) {
       console.error("Feil ved henting av chatter:", error.message);
     }
