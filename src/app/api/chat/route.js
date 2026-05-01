@@ -179,21 +179,16 @@ async function executeTool(call, supabase, userId) {
       if (error) throw error;
       return { success: true, added: data };
     }
-    if (name === "lagre_ukesmeny") {
-      const payload = { ...args, user_id: userId, oppdatert: new Date().toISOString() };
-      const { data, error } = await supabase
-        .from("ukesmeny")
-        .upsert(payload, { onConflict: 'user_id' })
-        .select();
-      if (error) throw error;
-      return { success: true, added: data };
-    }
-    if (name === "lagre_handleliste") {
-      const payload = { handleliste: args.handleliste, user_id: userId, oppdatert: new Date().toISOString() };
-      const { data, error } = await supabase
-        .from("ukesmeny")
-        .upsert(payload, { onConflict: 'user_id' })
-        .select();
+    if (name === "lagre_ukesmeny" || name === "lagre_handleliste") {
+      const { data: existing } = await supabase.from("ukesmeny").select("*").eq("user_id", userId).single();
+      const defaults = { mandag: "", tirsdag: "", onsdag: "", torsdag: "", fredag: "", lordag: "", sondag: "", handleliste: "" };
+      const payload = { 
+        ...(existing || defaults),
+        ...args, 
+        user_id: userId, 
+        oppdatert: new Date().toISOString() 
+      };
+      const { data, error } = await supabase.from("ukesmeny").upsert(payload, { onConflict: 'user_id' }).select();
       if (error) throw error;
       return { success: true, added: data };
     }
