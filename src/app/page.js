@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, ChefHat, Loader2, Menu, X, Plus, MessageSquare, LogOut, Package, BookOpen, Calendar, ShoppingCart, ChevronLeft, Camera, Image as ImageIcon, ChevronDown, CheckCircle2, Star, Utensils, Clock, ArrowRight } from "lucide-react";
+import { Send, ChefHat, Loader2, Menu, X, Plus, MessageSquare, LogOut, Package, BookOpen, Calendar, ShoppingCart, ChevronLeft, Camera, Image as ImageIcon, ChevronDown, CheckCircle2, Star, Utensils, Clock, ArrowRight, LayoutDashboard, Sparkles, Zap, ArrowUpRight } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -12,7 +12,7 @@ export default function Home() {
   const [isLoginLoading, setIsLoginLoading] = useState(false);
   const [authError, setAuthError] = useState("");
 
-  const [activeView, setActiveView] = useState("chat"); // 'chat', 'lager', 'kokebok', 'ukesmeny', 'handleliste'
+  const [activeView, setActiveView] = useState("dashboard"); // 'dashboard', 'chat', 'lager', 'kokebok', 'ukesmeny', 'handleliste'
   
   const [chats, setChats] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
@@ -50,7 +50,7 @@ export default function Home() {
         setChats([]);
         setMessages([]);
         setActiveChatId(null);
-        setActiveView("chat");
+        setActiveView("dashboard");
       }
     });
 
@@ -455,6 +455,112 @@ export default function Home() {
     </div>
   );
 
+  const renderDashboard = () => {
+    return (
+      <div className="flex-1 overflow-y-auto px-6 py-8 bg-slate-50 pb-24">
+        <div className="max-w-5xl mx-auto">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
+            <div>
+              <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Hei igjen! 👋</h2>
+              <p className="text-slate-500 mt-1">Hva står på menyen i dag?</p>
+            </div>
+            <button onClick={createNewChat} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-emerald-600/20 flex items-center gap-2 w-fit">
+              <Plus className="w-5 h-5" />
+              Ny samtale
+            </button>
+          </div>
+
+          {/* Quick Start / Onboarding */}
+          <div className="bg-white rounded-[32px] p-8 border border-slate-200 shadow-sm mb-10 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-3xl -z-10" />
+            <div className="flex items-start gap-4 mb-6">
+              <div className="bg-emerald-100 p-3 rounded-2xl">
+                <Sparkles className="w-6 h-6 text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-slate-800">Kom i gang med Souschef</h3>
+                <p className="text-slate-500 text-sm">Følg disse stegene for å få mest mulig ut av din personlige kokk.</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[
+                { step: 1, title: "Opprett varelager", desc: "Legg inn det du har i skapet slik at jeg kan foreslå retter.", view: "lager", icon: Package },
+                { step: 2, title: "Finn en oppskrift", desc: "Be meg om tips basert på ingrediensene dine.", view: "chat", icon: MessageSquare },
+                { step: 3, title: "Planlegg uken", desc: "Lag en ukesmeny og få automatiske handlelister.", view: "ukesmeny", icon: Calendar }
+              ].map((item) => (
+                <div key={item.step} onClick={() => navigateTo(item.view)} className="group cursor-pointer bg-slate-50 hover:bg-white hover:shadow-md border border-slate-100 rounded-2xl p-5 transition-all">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] bg-emerald-50 px-2 py-1 rounded-md">Steg {item.step}</span>
+                    <item.icon className="w-4 h-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                  </div>
+                  <h4 className="font-bold text-slate-800 mb-1 group-hover:text-emerald-600 transition-colors">{item.title}</h4>
+                  <p className="text-xs text-slate-500 leading-relaxed">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Feature Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div onClick={() => navigateTo("lager")} className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between min-h-[180px]">
+              <div>
+                <div className="bg-blue-50 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <Package className="w-6 h-6 text-blue-600" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800">Ditt Lager</h3>
+                <p className="text-slate-500 text-sm mt-1">Du har {lager.length} varer registrert.</p>
+              </div>
+              <div className="flex items-center text-blue-600 font-bold text-sm mt-4 gap-1">
+                Se lager <ArrowUpRight className="w-4 h-4" />
+              </div>
+            </div>
+
+            <div onClick={() => navigateTo("kokebok")} className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between min-h-[180px]">
+              <div>
+                <div className="bg-amber-50 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <BookOpen className="w-6 h-6 text-amber-600" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800">Kokeboken</h3>
+                <p className="text-slate-500 text-sm mt-1">{kokebok.length} lagrede oppskrifter.</p>
+              </div>
+              <div className="flex items-center text-amber-600 font-bold text-sm mt-4 gap-1">
+                Åpne kokebok <ArrowUpRight className="w-4 h-4" />
+              </div>
+            </div>
+
+            <div onClick={() => navigateTo("ukesmeny")} className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between min-h-[180px]">
+              <div>
+                <div className="bg-purple-50 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <Calendar className="w-6 h-6 text-purple-600" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800">Ukesmeny</h3>
+                <p className="text-slate-500 text-sm mt-1">{ukesmeny ? "Planen er klar." : "Ingen aktiv plan."}</p>
+              </div>
+              <div className="flex items-center text-purple-600 font-bold text-sm mt-4 gap-1">
+                Se ukesmeny <ArrowUpRight className="w-4 h-4" />
+              </div>
+            </div>
+
+            <div onClick={() => navigateTo("handleliste")} className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between min-h-[180px]">
+              <div>
+                <div className="bg-rose-50 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <ShoppingCart className="w-6 h-6 text-rose-600" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800">Handleliste</h3>
+                <p className="text-slate-500 text-sm mt-1">Alt du trenger til uken.</p>
+              </div>
+              <div className="flex items-center text-rose-600 font-bold text-sm mt-4 gap-1">
+                Vis handleliste <ArrowUpRight className="w-4 h-4" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <main className="flex h-[100dvh] bg-slate-50 text-slate-800 font-sans overflow-hidden relative">
       <div className={`fixed inset-y-0 left-0 w-80 bg-white border-r border-slate-200 shadow-2xl z-50 transform transition-transform duration-300 flex flex-col ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
@@ -463,6 +569,7 @@ export default function Home() {
           <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-3 border-b border-slate-100 flex flex-col gap-1">
+          <button onClick={() => navigateTo("dashboard")} className={`flex items-center gap-3 px-4 py-3 rounded-xl ${activeView === "dashboard" ? "bg-emerald-50 text-emerald-700 font-semibold" : "text-slate-600"}`}><LayoutDashboard className="w-5 h-5" /> Oversikt</button>
           <button onClick={() => navigateTo("chat")} className={`flex items-center gap-3 px-4 py-3 rounded-xl ${activeView === "chat" ? "bg-emerald-50 text-emerald-700 font-semibold" : "text-slate-600"}`}><MessageSquare className="w-5 h-5" /> Chat</button>
           <button onClick={() => navigateTo("lager")} className={`flex items-center gap-3 px-4 py-3 rounded-xl ${activeView === "lager" ? "bg-emerald-50 text-emerald-700 font-semibold" : "text-slate-600"}`}><Package className="w-5 h-5" /> Lager</button>
           <button onClick={() => navigateTo("kokebok")} className={`flex items-center gap-3 px-4 py-3 rounded-xl ${activeView === "kokebok" ? "bg-emerald-50 text-emerald-700 font-semibold" : "text-slate-600"}`}><BookOpen className="w-5 h-5" /> Kokebok</button>
@@ -488,6 +595,7 @@ export default function Home() {
             <h1 className="text-xl font-bold text-slate-800 capitalize">{activeView}</h1>
           </div>
         </header>
+        {activeView === "dashboard" && renderDashboard()}
         {activeView === "lager" && renderLager()}
         {activeView === "kokebok" && renderKokebok()}
         {activeView === "ukesmeny" && renderUkesmeny()}
