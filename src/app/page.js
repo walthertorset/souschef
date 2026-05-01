@@ -639,7 +639,16 @@ export default function Home() {
                       {isChecked && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
                     </div>
                     <span className={`text-[15px] transition-all ${isChecked ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
-                      {children}
+                      {childrenArray.map((child, idx) => {
+                        if (typeof child === 'string') {
+                          return child.replace(/^\[[ x]\]\s*/, '');
+                        }
+                        // Hvis barnet har egne barn (f.eks. fet skrift), prøv å rense dem også
+                        if (child.props?.children && typeof child.props.children === 'string') {
+                          return { ...child, props: { ...child.props, children: child.props.children.replace(/^\[[ x]\]\s*/, '') } };
+                        }
+                        return child;
+                      })}
                     </span>
                   </li>
                 );
