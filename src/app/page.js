@@ -79,8 +79,15 @@ export default function Home() {
   }, [activeView, session]);
 
   const fetchChats = async (userId) => {
-    const { data } = await supabase.from("chats").select("*").eq("user_id", userId).order("updated_at", { ascending: false });
-    if (data) setChats(data);
+    const { data, error } = await supabase.from("chats").select("*").eq("user_id", userId).order("updated_at", { ascending: false });
+    
+    if (error) {
+      console.warn("Klarte ikke sortere på updated_at (kanskje kolonnen mangler?), prøver created_at isteden:", error.message);
+      const { data: fallbackData } = await supabase.from("chats").select("*").eq("user_id", userId).order("created_at", { ascending: false });
+      if (fallbackData) setChats(fallbackData);
+    } else if (data) {
+      setChats(data);
+    }
   };
 
   const fetchLager = async () => {
@@ -274,7 +281,10 @@ export default function Home() {
         }
         return prev;
       });
-      await supabase.from("chats").update({ updated_at: new Date().toISOString() }).eq("id", currentChatId);
+      // Oppdater database for å refreshe tidsstempel (ignorer feil hvis kolonnen mangler)
+      supabase.from("chats").update({ updated_at: new Date().toISOString() }).eq("id", currentChatId).then(({ error }) => {
+        if (error) console.warn("Kunne ikke oppdatere updated_at på chats-tabellen:", error.message);
+      });
       await supabase.from("messages").insert({ chat_id: currentChatId, role: "user", content: userMessage.content });
     }
     try {
