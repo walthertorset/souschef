@@ -1,5 +1,5 @@
 {
-  "name": "web",
+  "name": "souschef-web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
+    "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.105.1",
     "lucide-react": "^1.14.0",
     "next": "16.2.4",
