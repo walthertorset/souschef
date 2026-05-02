@@ -437,14 +437,14 @@ export default function Home() {
         </nav>
 
         {/* Hero Section */}
-        <section className="pt-32 pb-20 px-6 relative overflow-hidden">
+        <section className="pt-32 pb-20 px-4 sm:px-6 relative overflow-hidden">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-emerald-100/50 blur-[120px] rounded-full -z-10" />
           <div className="max-w-4xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-1.5 rounded-full text-sm font-semibold mb-6 border border-emerald-100">
               <Star className="w-4 h-4 fill-emerald-500 text-emerald-500" />
               Din personlige AI-kokk i lomma
             </div>
-            <h1 className="text-5xl md:text-6xl font-extrabold text-slate-900 leading-[1.1] mb-8 tracking-tight">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-slate-900 leading-[1.1] mb-8 tracking-tight text-balance">
               Middagsløsningen du har <span className="text-emerald-600">ventet på.</span>
             </h1>
             <p className="text-lg md:text-xl text-slate-600 mb-10 max-w-2xl mx-auto leading-relaxed">
@@ -672,7 +672,7 @@ export default function Home() {
           {selectedRecipe.image_url ? <img src={selectedRecipe.image_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-2"><ImageIcon className="w-12 h-12 opacity-50" /></div>}
         </div>
         <div className="px-5 py-6 max-w-3xl mx-auto w-full">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">{selectedRecipe.navn}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">{selectedRecipe.navn}</h1>
           {isFetchingRecipe ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <Loader2 className="w-10 h-10 animate-spin text-emerald-500" />
@@ -851,7 +851,7 @@ export default function Home() {
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
             <div>
-              <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Hei igjen! 👋</h2>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Hei igjen! 👋</h2>
               <p className="text-slate-500 mt-1">Hva står på menyen i dag?</p>
             </div>
             <button onClick={createNewChat} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-emerald-600/20 flex items-center gap-2 w-fit">
@@ -952,7 +952,7 @@ export default function Home() {
 
   return (
     <main className="flex h-[100dvh] bg-slate-50 text-slate-800 font-sans overflow-hidden relative">
-      <div className={`fixed inset-y-0 left-0 w-80 bg-white border-r border-slate-200 shadow-2xl z-50 transform transition-transform duration-300 flex flex-col ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <div className={`fixed inset-y-0 left-0 w-[280px] sm:w-80 bg-white border-r border-slate-200 shadow-2xl z-50 transform transition-transform duration-300 flex flex-col ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="p-5 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2"><div className="bg-emerald-500 p-1.5 rounded-lg"><ChefHat className="text-white w-4 h-4" /></div><h2 className="font-bold text-slate-800">Souschef</h2></div>
           <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full"><X className="w-5 h-5" /></button>
