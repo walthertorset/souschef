@@ -24,6 +24,9 @@ export const metadata = {
     statusBarStyle: "default",
     title: "Souschef",
   },
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({ children }) {
