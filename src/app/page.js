@@ -273,6 +273,34 @@ export default function Home() {
     }
   };
 
+  const nullstillUkesmenyOnly = async () => {
+    if (!confirm("Er du sikker på at du vil fjerne ukesmenyen? Handlelisten vil bli bevart.")) return;
+    const updates = {
+      mandag: "", tirsdag: "", onsdag: "", torsdag: "", fredag: "", lordag: "", sondag: "",
+      oppdatert: new Date().toISOString()
+    };
+    const { error } = await supabase.from("ukesmeny").update(updates).eq("user_id", session.user.id);
+    if (!error) {
+      setUkesmeny(prev => ({ ...prev, ...updates }));
+    } else {
+      alert("Feil ved nullstilling av ukesmeny: " + error.message);
+    }
+  };
+
+  const nullstillHandlelisteOnly = async () => {
+    if (!confirm("Er du sikker på at du vil tømme handlelisten? Ukesmenyen vil bli bevart.")) return;
+    const updates = {
+      handleliste: "",
+      oppdatert: new Date().toISOString()
+    };
+    const { error } = await supabase.from("ukesmeny").update(updates).eq("user_id", session.user.id);
+    if (!error) {
+      setUkesmeny(prev => ({ ...prev, ...updates }));
+    } else {
+      alert("Feil ved nullstilling av handleliste: " + error.message);
+    }
+  };
+
   const scrollToLogin = () => {
     loginRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -353,7 +381,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
         body: JSON.stringify({ 
           messages: [
-            { role: "user", content: `Gi meg en detaljert oppskrift på "${dishName}". Svar KUN med selve oppskriften formatert som JSON. Bruk formatet: {"navn": "...", "ingredienser": [{"navn": "...", "mengde": "..."}], "instruksjoner": ["...", "..."]}` }
+            { role: "user", content: `Gi meg en detaljert oppskrift på "${dishName}". Svar KUN med selve oppskriften formatert som JSON. Bruk formatet: {"navn": "...", "cuisine": "...", "kategori": "hverdag/helg", "ingredienser": [{"navn": "...", "mengde": "..."}], "instruksjoner": ["...", "..."]}` }
           ] 
         })
       });
@@ -368,6 +396,8 @@ export default function Home() {
           setSelectedRecipe({
             id: 'temp-' + Date.now(),
             navn: parsed.navn || dishName,
+            cuisine: parsed.cuisine || "Annet",
+            kategori: parsed.kategori || "hverdag",
             oppskrift: JSON.stringify({
               ingredienser: parsed.ingredienser || [],
               instruksjoner: parsed.instruksjoner || []
@@ -570,25 +600,49 @@ export default function Home() {
   };
 
   const renderKokebok = () => {
+    const getRecipeTime = (r) => {
+      const d = r.sist_laget || r.created_at;
+      if (!d) return 0;
+      const time = new Date(d).getTime();
+      return isNaN(time) ? 0 : time;
+    };
+
     const sortedKokebok = [...kokebok].sort((a, b) => {
-      const dateA = new Date(a.sist_laget || a.created_at || 0);
-      const dateB = new Date(b.sist_laget || b.created_at || 0);
-      return recipeSortOrder === "newest" ? dateB - dateA : dateA - dateB;
+      if (recipeSortOrder === "alphabetical") {
+        return a.navn.localeCompare(b.navn);
+      }
+      const timeA = getRecipeTime(a);
+      const timeB = getRecipeTime(b);
+      return recipeSortOrder === "newest" ? timeB - timeA : timeA - timeB;
     });
+
     const groupedKokebok = sortedKokebok.reduce((acc, item) => {
       const c = item.cuisine || "Annet";
       if (!acc[c]) acc[c] = [];
       acc[c].push(item);
       return acc;
     }, {});
+
+    // Sort categories based on the first recipe in each (which is already sorted)
+    const sortedCuisines = Object.keys(groupedKokebok).sort((a, b) => {
+      if (recipeSortOrder === "alphabetical") {
+        return a.localeCompare(b);
+      }
+      const firstA = groupedKokebok[a][0];
+      const firstB = groupedKokebok[b][0];
+      const timeA = getRecipeTime(firstA);
+      const timeB = getRecipeTime(firstB);
+      return recipeSortOrder === "newest" ? timeB - timeA : timeA - timeB;
+    });
     return (
       <div className="flex-1 overflow-y-auto px-4 py-6 bg-slate-50 pb-20 relative">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-slate-800">Din Kokebok</h2>
           <div className="flex items-center gap-3">
-            <select value={recipeSortOrder} onChange={e => setRecipeSortOrder(e.target.value)} className="bg-white border border-slate-200 text-sm rounded-lg px-3 py-1.5">
+            <select value={recipeSortOrder} onChange={e => setRecipeSortOrder(e.target.value)} className="bg-white border border-slate-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all">
               <option value="newest">Nyeste først</option>
               <option value="oldest">Eldste først</option>
+              <option value="alphabetical">Alfabetisk (A-Å)</option>
             </select>
             <button onClick={() => { setEditingRecipe(null); setIsRecipeEditModalOpen(true); }} className="bg-emerald-600 text-white p-2 rounded-full hover:bg-emerald-700 transition-colors">
               <Plus className="w-5 h-5" />
@@ -597,7 +651,7 @@ export default function Home() {
         </div>
         {isDataLoading ? <Loader2 className="w-6 h-6 animate-spin text-emerald-500 mx-auto" /> : (
           <div className="flex flex-col gap-8">
-            {Object.keys(groupedKokebok).sort().map(cuisine => (
+            {sortedCuisines.map(cuisine => (
               <div key={cuisine}>
                 <h3 className="text-lg font-bold text-emerald-800 mb-3 capitalize flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-emerald-400"></div>{cuisine}
@@ -608,9 +662,17 @@ export default function Home() {
                       <div className="h-40 bg-slate-100 relative">
                         {item.image_url ? <img src={item.image_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-300"><ImageIcon className="w-10 h-10" /></div>}
                       </div>
-                      <div className="p-4 flex-1">
-                        <h4 className="font-semibold text-slate-800 text-lg mb-1">{item.navn}</h4>
-                        <p className="text-sm text-slate-500 capitalize">{item.kategori}</p>
+                      <div className="p-4 flex-1 flex flex-col justify-between">
+                        <div>
+                          <h4 className="font-semibold text-slate-800 text-lg mb-1 line-clamp-1">{item.navn}</h4>
+                          <p className="text-xs text-slate-500 capitalize bg-slate-50 px-2 py-0.5 rounded-full w-fit border border-slate-100">{item.kategori}</p>
+                        </div>
+                        {(item.sist_laget || item.created_at) && (
+                          <div className="mt-3 flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
+                            <Clock className="w-3 h-3" />
+                            <span>{item.sist_laget ? `Laget ${item.sist_laget}` : `Lagt til ${new Date(item.created_at).toLocaleDateString('nb-NO')}`}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -641,7 +703,8 @@ export default function Home() {
                     navn: selectedRecipe.navn,
                     oppskrift: selectedRecipe.oppskrift,
                     user_id: session.user.id,
-                    kategori: "hverdag"
+                    kategori: selectedRecipe.kategori || "hverdag",
+                    cuisine: selectedRecipe.cuisine || "Annet"
                   };
                   const { data, error } = await supabase.from("kokebok").insert(recipeData).select().single();
                   if (!error) {
@@ -751,7 +814,7 @@ export default function Home() {
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-slate-800">Din Ukesmeny</h2>
           {ukesmeny && (
-            <button onClick={deleteUkesmeny} className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-xl transition-colors text-sm font-semibold">
+            <button onClick={nullstillUkesmenyOnly} className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-xl transition-colors text-sm font-semibold">
               <Trash2 className="w-4 h-4" /> Nullstill
             </button>
           )}
@@ -766,7 +829,7 @@ export default function Home() {
                   <div className="w-16 text-right shrink-0"><span className="text-sm font-bold text-emerald-600 uppercase tracking-wider">{norskeDager[i].substring(0,3)}</span></div>
                   <div className="w-px h-8 bg-slate-100 shrink-0"></div>
                   <div className="flex-1 min-w-0">
-                    <span className="font-semibold text-slate-800 truncate block">{dishName || "Ingen plan"}</span>
+                    <span className="font-semibold text-slate-800 leading-snug">{dishName || "Ingen plan"}</span>
                   </div>
                   {dishName && (
                     <div className={`p-2 rounded-xl transition-colors ${recipe ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400 group-hover:text-emerald-500'}`}>
@@ -787,7 +850,7 @@ export default function Home() {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-slate-800">Handleliste</h2>
         {ukesmeny && ukesmeny.handleliste && (
-          <button onClick={deleteUkesmeny} className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-xl transition-colors text-sm font-semibold">
+          <button onClick={nullstillHandlelisteOnly} className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-xl transition-colors text-sm font-semibold">
             <Trash2 className="w-4 h-4" /> Nullstill
           </button>
         )}

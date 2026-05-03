@@ -39,7 +39,7 @@ const tools = [{
     },
     {
       name: "lagre_oppskrift",
-      description: "Lagre en ny oppskrift i kokeboken.",
+      description: "Lagre en ny oppskrift i kokeboken. Du må ALLTID klassifisere oppskriften med riktig 'cuisine' (f.eks 'Italiensk', 'Asiatisk', 'Norsk', 'Mexikansk') og 'kategori' ('hverdag' eller 'helg').",
       parameters: {
         type: "OBJECT",
         properties: {
@@ -47,11 +47,11 @@ const tools = [{
           kategori: { type: "STRING", description: "Kategori for oppskriften ('hverdag' eller 'helg')" },
           rangering: { type: "INTEGER", description: "Rangering fra 1 til 5" },
           notater: { type: "STRING", description: "Eventuelle notater" },
-          cuisine: { type: "STRING", description: "Type kjøkken (f.eks 'Italiensk', 'Asiatisk', 'Norsk')" },
+          cuisine: { type: "STRING", description: "Type kjøkken (f.eks 'Italiensk', 'Asiatisk', 'Norsk', 'Fransk', 'Indisk', 'Mexikansk')" },
           oppskrift: { type: "STRING", description: "Oppskriftsdata som JSON streng (ingredienser, instruksjoner etc)" },
           sist_laget: { type: "STRING", description: "Dato for når den sist ble laget (YYYY-MM-DD)" }
         },
-        required: ["navn"]
+        required: ["navn", "cuisine", "kategori"]
       }
     },
     {
@@ -150,7 +150,15 @@ const tools = [{
     },
     {
       name: "nullstill_ukesmeny",
-      description: "Slett ukesmenyen og handlelisten helt. Bruk denne hvis brukeren vil fjerne planen sin eller starte på nytt."
+      description: "Slett ukesmenyen (mandag-søndag), men behold handlelisten. Bruk denne hvis brukeren vil planlegge uken på nytt."
+    },
+    {
+      name: "nullstill_handleliste",
+      description: "Slett kun handlelisten, men behold ukesmenyen. Bruk denne hvis brukeren vil tømme listen."
+    },
+    {
+      name: "nullstill_alt",
+      description: "Slett både ukesmeny og handleliste helt. Bruk denne hvis brukeren vil starte helt på nytt."
     }
   ]
 }];
@@ -223,6 +231,17 @@ async function executeTool(call, supabase, userId) {
       return { success: true, updated: data };
     }
     if (name === "nullstill_ukesmeny") {
+      const updates = { mandag: "", tirsdag: "", onsdag: "", torsdag: "", fredag: "", lordag: "", sondag: "", oppdatert: new Date().toISOString() };
+      const { error } = await supabase.from("ukesmeny").update(updates).eq("user_id", userId);
+      if (error) throw error;
+      return { success: true };
+    }
+    if (name === "nullstill_handleliste") {
+      const { error } = await supabase.from("ukesmeny").update({ handleliste: "", oppdatert: new Date().toISOString() }).eq("user_id", userId);
+      if (error) throw error;
+      return { success: true };
+    }
+    if (name === "nullstill_alt") {
       const { error } = await supabase.from("ukesmeny").delete().eq("user_id", userId);
       if (error) throw error;
       return { success: true };
@@ -289,7 +308,8 @@ Følgende forutsetninger gjelder ALLTID:
    - Handlelister skal ALLTID sorteres etter hvor varene befinner seg fysisk i en typisk norsk matbutikk (f.eks. Frukt & Grønt, Kjøtt & Fisk, Kjølevare/Mejeri, Tørrvare, Frysevare).
 5. Ukesmenyer: Hvis du blir bedt om å foreslå meny for flere dager eller en hel uke, skal du alltid generere én felles, summert handleliste for hele perioden, som igjen er pent sortert etter butikkavdelinger. Bruk alltid '- [ ] ' for alle varer.
 6. Duplikater på lager: Sjekk alltid hva som allerede finnes på lageret før du legger til nye varer. Hvis brukeren ber deg legge til en ingrediens som allerede finnes (f.eks. Spisskummen), skal du IKKE legge den til på nytt for å unngå duplikater.
-7. Oppskriftsforespørsler: Hvis brukeren ber om en oppskrift i JSON-format (f.eks. når de klikker på en rett i ukesmenyen), skal du svare KUN med et JSON-objekt som inneholder 'navn', 'ingredienser' (liste med 'navn' og 'mengde') og 'instruksjoner' (liste med tekststregner). Ikke inkluder markdown-formatering rundt JSON-koden med mindre du blir bedt om det.`,
+7. Oppskriftsforespørsler: Hvis brukeren ber om en oppskrift i JSON-format (f.eks. når de klikker på en rett i ukesmenyen), skal du svare KUN med et JSON-objekt som inneholder 'navn', 'cuisine', 'kategori' ('hverdag'/'helg'), 'ingredienser' (liste med 'navn' og 'mengde') og 'instruksjoner' (liste med tekststregner). Ikke inkluder markdown-formatering rundt JSON-koden med mindre du blir bedt om det.
+8. Klassifisering: Du skal ALLTID tildele en 'cuisine' til alle oppskrifter du lagrer eller foreslår. Bruk kjente kategorier som 'Norsk', 'Italiensk', 'Asiatisk', 'Indisk', 'Mexikansk', 'Amerikansk', osv. Dette er kritisk for at sorteringen i kokeboken skal fungere.`,
         tools: tools,
       },
       history: history
