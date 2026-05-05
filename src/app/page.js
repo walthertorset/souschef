@@ -344,11 +344,40 @@ export default function Home() {
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
         body: JSON.stringify({ messages: [...messages, userMessage] })
       });
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
-      const assistantMsg = { role: "assistant", content: data.content };
-      setMessages(prev => [...prev, assistantMsg]);
-      if (currentChatId) await supabase.from("messages").insert({ chat_id: currentChatId, role: "assistant", content: assistantMsg.content });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Ukjent feil" }));
+        throw new Error(errorData.error || "Noe gikk galt");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let assistantContent = "";
+
+      // Legg til en tom assistent-melding som vi kan fylle med innhold
+      setMessages(prev => [...prev, { role: "assistant", content: "" }]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        assistantContent += chunk;
+
+        setMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1] = { role: "assistant", content: assistantContent };
+          return newMessages;
+        });
+      }
+
+      if (currentChatId) {
+        await supabase.from("messages").insert({ 
+          chat_id: currentChatId, 
+          role: "assistant", 
+          content: assistantContent 
+        });
+      }
     } catch (error) {
       setMessages(prev => [...prev, { role: "assistant", content: `Feil: ${error.message}` }]);
     } finally {
@@ -386,10 +415,19 @@ export default function Home() {
         })
       });
       
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
+      if (!response.ok) throw new Error("Kunne ikke hente oppskrift");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        fullContent += decoder.decode(value, { stream: true });
+      }
       
-      const jsonMatch = data.content.match(/\{[\s\S]*\}/);
+      const jsonMatch = fullContent.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
           const parsed = JSON.parse(jsonMatch[0]);
@@ -409,7 +447,7 @@ export default function Home() {
         setSelectedRecipe({
           id: 'temp-' + Date.now(),
           navn: dishName,
-          oppskrift: data.content,
+          oppskrift: fullContent,
           is_temporary: true
         });
       }

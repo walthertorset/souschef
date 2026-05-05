@@ -315,25 +315,67 @@ Følgende forutsetninger gjelder ALLTID:
       history: history
     });
     
-    let response = await chat.sendMessage({ message: latestMessage });
-    
+    let currentMessage = { message: latestMessage };
     let loopCount = 0;
-    while (response.functionCalls && response.functionCalls.length > 0 && loopCount < 5) {
+
+    while (loopCount < 5) {
       loopCount++;
-      const functionResponses = [];
-      for (const call of response.functionCalls) {
-        const result = await executeTool(call, supabase, user.id);
-        functionResponses.push({
-          functionResponse: {
-            name: call.name,
-            response: result
+      const result = await chat.sendMessageStream(currentMessage);
+      
+      // Consume the first chunk to check if it's a tool call
+      const iterator = result.stream[Symbol.asyncIterator]();
+      const { value: firstChunk, done } = await iterator.next();
+
+      if (done) break;
+
+      if (firstChunk.functionCalls && firstChunk.functionCalls.length > 0) {
+        // Wait for the full response to get ALL function calls
+        const response = await result.response;
+        const functionResponses = [];
+        for (const call of response.functionCalls) {
+          const toolResult = await executeTool(call, supabase, user.id);
+          functionResponses.push({
+            functionResponse: {
+              name: call.name,
+              response: toolResult
+            }
+          });
+        }
+        currentMessage = { message: functionResponses };
+        continue;
+      } else {
+        // It's a text response! Stream it.
+        const stream = new ReadableStream({
+          async start(controller) {
+            const encoder = new TextEncoder();
+            
+            // Send the first chunk we already read
+            const firstText = firstChunk.text();
+            if (firstText) {
+              controller.enqueue(encoder.encode(firstText));
+            }
+
+            // Stream the rest
+            for await (const chunk of result.stream) {
+              const text = chunk.text();
+              if (text) {
+                controller.enqueue(encoder.encode(text));
+              }
+            }
+            controller.close();
           }
         });
+
+        return new Response(stream, {
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Transfer-Encoding": "chunked",
+          },
+        });
       }
-      response = await chat.sendMessage({ message: functionResponses });
     }
     
-    return Response.json({ role: "assistant", content: response.text });
+    return Response.json({ error: "No response from AI" }, { status: 500 });
   } catch (error) {
     console.error("API Error:", error);
     return Response.json({ error: error.message }, { status: 500 });
