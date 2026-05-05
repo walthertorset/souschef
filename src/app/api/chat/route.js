@@ -323,16 +323,21 @@ Følgende forutsetninger gjelder ALLTID:
       const result = await chat.sendMessageStream(currentMessage);
       
       // Consume the first chunk to check if it's a tool call
-      const iterator = result.stream[Symbol.asyncIterator]();
-      const { value: firstChunk, done } = await iterator.next();
-
-      if (done) break;
+      const firstResult = await result.next();
+      if (firstResult.done) break;
+      const firstChunk = firstResult.value;
 
       if (firstChunk.functionCalls && firstChunk.functionCalls.length > 0) {
-        // Wait for the full response to get ALL function calls
-        const response = await result.response;
+        // Collect all chunks to get ALL function calls
+        const functionCalls = [...firstChunk.functionCalls];
+        for await (const chunk of result) {
+          if (chunk.functionCalls) {
+            functionCalls.push(...chunk.functionCalls);
+          }
+        }
+        
         const functionResponses = [];
-        for (const call of response.functionCalls) {
+        for (const call of functionCalls) {
           const toolResult = await executeTool(call, supabase, user.id);
           functionResponses.push({
             functionResponse: {
@@ -350,14 +355,14 @@ Følgende forutsetninger gjelder ALLTID:
             const encoder = new TextEncoder();
             
             // Send the first chunk we already read
-            const firstText = firstChunk.text();
+            const firstText = firstChunk.text;
             if (firstText) {
               controller.enqueue(encoder.encode(firstText));
             }
 
             // Stream the rest
-            for await (const chunk of result.stream) {
-              const text = chunk.text();
+            for await (const chunk of result) {
+              const text = chunk.text;
               if (text) {
                 controller.enqueue(encoder.encode(text));
               }
