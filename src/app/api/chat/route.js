@@ -1,6 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 
+export const dynamic = 'force-dynamic';
+
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const tools = [{
@@ -375,6 +377,9 @@ Følgende forutsetninger gjelder ALLTID:
           headers: {
             "Content-Type": "text/plain; charset=utf-8",
             "Transfer-Encoding": "chunked",
+            "Cache-Control": "no-cache, no-transform",
+            "X-Content-Type-Options": "nosniff",
+            "Connection": "keep-alive"
           },
         });
       }
