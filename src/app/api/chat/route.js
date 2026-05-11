@@ -313,13 +313,13 @@ Følgende forutsetninger gjelder ALLTID:
 6. Duplikater på lager: Sjekk alltid hva som allerede finnes på lageret før du legger til nye varer. Hvis brukeren ber deg legge til en ingrediens som allerede finnes (f.eks. Spisskummen), skal du IKKE legge den til på nytt for å unngå duplikater.
 7. Oppskriftsforespørsler: Hvis brukeren ber om en oppskrift i JSON-format, skal du svare med et objekt som inneholder 'navn', 'cuisine', 'kategori', 'ingredienser' og 'instruksjoner'. For å gruppere ingredienser (f.eks. 'Saus', 'Marinade'), legg til et element i 'ingredienser'-listen med tom 'mengde' og 'navn' som slutter på kolon (f.eks. { "mengde": "", "navn": "Saus:" }).
 8. Klassifisering: Du skal ALLTID tildele en 'cuisine' til alle oppskrifter du lagrer eller foreslår. Bruk kjente kategorier som 'Norsk', 'Italiensk', 'Asiatisk', 'Indisk', 'Mexikansk', 'Amerikansk', osv. Dette er kritisk for at sorteringen i kokeboken skal fungere.
-9. Formatering i Chat: Du MÅ skrive oppskrifter med EKTE Markdown for at appen skal fungere. Følg EXAKT denne malen for hver eneste oppskrift du foreslår i chatten:
+9. Formatering i Chat (EKSTREMT VIKTIG): Du MÅ skrive ut de faktiske Markdown-symbolene i teksten din. Hvis du utelater symbolene (#, *, -) vil appen krasje. Følg denne malen slavisk:
 
 **[Navn på Retten]**
-(Cuisine, Kategori, Tidsbruk)
+([Cuisine], [Kategori], [Tidsbruk])
 
 ### Ingredienser
-**[Evt. underdel, f.eks. Saus:]**
+**[Evt. underdel:]**
 - [Mengde] [Ingrediens 1]
 - [Mengde] [Ingrediens 2]
 
@@ -327,7 +327,7 @@ Følgende forutsetninger gjelder ALLTID:
 1. [Steg 1]
 2. [Steg 2]
 
-Det er KRITISK at du bruker '### ' for overskriftene, fet skrift for underdeler, bindestrek '- ' for hver ingrediens og tall '1. ' for hvert steg i fremgangsmåten. Du MÅ ha doble linjeskift mellom seksjonene.`,
+Du MÅ skrive '### ' foran Ingredienser og Fremgangsmåte. Du MÅ skrive '- ' foran hver ingrediens. Ikke ignorer disse symbolene!`,
         tools: tools,
       },
       history: history
