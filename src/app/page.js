@@ -6,19 +6,22 @@ import ReactMarkdown from "react-markdown";
 import { supabase } from "@/lib/supabaseClient";
 
 // Post-processes raw AI text into proper Markdown for recipe display.
-// Uses regex so it works regardless of whether the AI uses newlines correctly.
+// Key insight: ReactMarkdown (CommonMark) needs DOUBLE newlines (\n\n) to
+// recognize block elements like headings and lists. The AI only outputs single \n,
+// so everything becomes one big paragraph. This function fixes that.
 function formatRecipeText(text) {
   if (!text) return text;
 
-  // Step 1: Normalize - ensure section headers are on their own lines.
-  // Match bare "Ingredienser" or "Fremgangsmåte" (with optional ** or :) that appear
-  // either at the start of a line or after sentence-ending punctuation.
-  const headerPattern = /(\n|^)(\*{0,2})(Ingredienser|Fremgangsmåte|Framgangsmåte|Instruksjoner|Servering|Tips)(\*{0,2}):?(\n|$)/gm;
-  let processed = text.replace(headerPattern, (_, pre, _b1, header, _b2, post) => {
-    return `\n\n### ${header}\n`;
-  });
+  // Step 1: Convert known section headers to ### markdown headings
+  const headers = ["Ingredienser", "Fremgangsmåte", "Framgangsmåte", "Instruksjoner", "Servering", "Tips"];
+  let processed = text;
+  for (const h of headers) {
+    // Match the header word with optional bold markers and colon, on its own line
+    const pattern = new RegExp(`(\\n|^)\\*{0,2}${h}\\*{0,2}:?\\s*(\\n|$)`, "gm");
+    processed = processed.replace(pattern, `\n\n### ${h}\n\n`);
+  }
 
-  // Step 2: Process line by line to add dashes to ingredients and numbers to steps
+  // Step 2: Process line by line to add dashes and numbers
   const lines = processed.split("\n");
   const result = [];
   let inIngredients = false;
@@ -26,54 +29,50 @@ function formatRecipeText(text) {
   let stepCounter = 0;
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
+    const trimmed = lines[i].trim();
 
-    // Detect section transition
+    // Detect section transitions
     if (/^### Ingredienser/.test(trimmed)) {
       inIngredients = true;
       inSteps = false;
-      result.push(line);
+      result.push(trimmed);
       continue;
     }
     if (/^### (Fremgangsmåte|Framgangsmåte|Instruksjoner)/.test(trimmed)) {
       inIngredients = false;
       inSteps = true;
       stepCounter = 0;
-      result.push(line);
+      result.push(trimmed);
       continue;
     }
     if (/^### /.test(trimmed)) {
       inIngredients = false;
       inSteps = false;
-      result.push(line);
+      result.push(trimmed);
       continue;
     }
 
     if (trimmed.length === 0) {
-      result.push(line);
+      result.push("");
       continue;
     }
 
-    // Sub-section headers inside ingredients (e.g. "Til sausen:" or "Til kotelettene:")
+    // Sub-section headers inside ingredients (e.g. "Til sausen:", "Annet:")
     if (inIngredients && trimmed.endsWith(":") && trimmed.length < 50 &&
         !trimmed.startsWith("-") && !trimmed.startsWith("#")) {
-      if (!trimmed.startsWith("**")) {
-        result.push("**" + trimmed + "**");
-      } else {
-        result.push(line);
-      }
+      const clean = trimmed.replace(/^\*+|\*+$/g, ""); // strip existing bold
+      result.push("\n**" + clean + "**");
       continue;
     }
 
-    // Ingredients: add "- " if not already a list item
+    // Ingredients: add "- " prefix
     if (inIngredients && !trimmed.startsWith("-") && !trimmed.startsWith("#") &&
-        !trimmed.startsWith("*") && !/^\d+\./.test(trimmed)) {
+        !trimmed.startsWith("**") && !/^\d+\./.test(trimmed)) {
       result.push("- " + trimmed);
       continue;
     }
 
-    // Steps: add numbering if not already numbered
+    // Steps: add numbering
     if (inSteps && !trimmed.startsWith("#") && !/^\d+\./.test(trimmed) &&
         !trimmed.startsWith("-") && !trimmed.startsWith("*")) {
       stepCounter++;
@@ -81,10 +80,32 @@ function formatRecipeText(text) {
       continue;
     }
 
-    result.push(line);
+    result.push(trimmed);
   }
 
-  return result.join("\n");
+  // Step 3: Join and ensure double newlines around block elements
+  // This is the CRITICAL step - without \n\n, ReactMarkdown treats everything as one paragraph
+  let output = result.join("\n");
+
+  // Ensure \n\n before ### headings
+  output = output.replace(/\n*(### [^\n]+)/g, "\n\n$1");
+
+  // Ensure \n\n after ### headings
+  output = output.replace(/(### [^\n]+)\n*/g, "$1\n\n");
+
+  // Ensure \n\n before the first list item after non-list content
+  output = output.replace(/([^\n-])\n(- [^\n])/g, "$1\n\n$2");
+
+  // Ensure \n\n before the first numbered item after non-numbered content
+  output = output.replace(/([^\n\d])\n(\d+\. [^\n])/g, "$1\n\n$2");
+
+  // Ensure \n\n before bold sub-headers
+  output = output.replace(/([^\n])\n(\*\*[^\n]+\*\*)\n/g, "$1\n\n$2\n");
+
+  // Clean up excessive newlines (more than 3 consecutive)
+  output = output.replace(/\n{4,}/g, "\n\n\n");
+
+  return output.trim();
 }
 
 export default function Home() {
