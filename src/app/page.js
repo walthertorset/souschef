@@ -786,7 +786,7 @@ export default function Home() {
             <select 
               value={recipeSortOrder} 
               onChange={e => setRecipeSortOrder(e.target.value)} 
-              className="flex-1 sm:flex-none bg-white border border-slate-200 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-sm"
+              className="flex-1 sm:flex-none bg-white border border-slate-200 text-base font-medium rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-sm text-slate-700"
             >
               <option value="newest">Nyeste først</option>
               <option value="oldest">Eldste først</option>
@@ -1303,7 +1303,7 @@ export default function Home() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Kategori</label>
-                    <select name="kategori" defaultValue={editingRecipe?.kategori || "hverdag"} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50">
+                    <select name="kategori" defaultValue={editingRecipe?.kategori || "hverdag"} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-base text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50">
                       <option value="hverdag">Hverdag</option>
                       <option value="helg">Helg</option>
                     </select>
