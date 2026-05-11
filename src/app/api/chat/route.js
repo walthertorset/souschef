@@ -295,7 +295,7 @@ export async function POST(req) {
     const latestMessage = messages[messages.length - 1].content;
     
     const chat = ai.chats.create({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       config: {
         systemInstruction: `Du er Souschef, en AI-kokk. Du hjelper brukeren med matlaging, holder oversikt over spesialvarer/krydder på lageret og lagrer oppskrifter i kokeboken. Svar alltid på Norsk, vær vennlig og formater lister pent. 
 
@@ -317,80 +317,68 @@ Følgende forutsetninger gjelder ALLTID:
       },
       history: history
     });
-    
-    let currentMessage = { message: latestMessage };
-    let loopCount = 0;
 
-    while (loopCount < 5) {
-      loopCount++;
-      const result = await chat.sendMessageStream(currentMessage);
-      
-      // Consume the first chunk to check if it's a tool call
-      const firstResult = await result.next();
-      if (firstResult.done) break;
-      const firstChunk = firstResult.value;
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          let currentMessage = { message: latestMessage };
+          let loopCount = 0;
 
-      if (firstChunk.functionCalls && firstChunk.functionCalls.length > 0) {
-        // Collect all chunks to get ALL function calls
-        const functionCalls = [...firstChunk.functionCalls];
-        for await (const chunk of result) {
-          if (chunk.functionCalls) {
-            functionCalls.push(...chunk.functionCalls);
-          }
-        }
-        
-        const functionResponses = [];
-        for (const call of functionCalls) {
-          const toolResult = await executeTool(call, supabase, user.id);
-          functionResponses.push({
-            functionResponse: {
-              name: call.name,
-              response: toolResult
-            }
-          });
-        }
-        currentMessage = { message: functionResponses };
-        continue;
-      } else {
-        // It's a text response! Stream it.
-        const stream = new ReadableStream({
-          async start(controller) {
-            const encoder = new TextEncoder();
-            
-            // Send the first chunk we already read
-            const firstText = firstChunk.text;
-            if (firstText) {
-              controller.enqueue(encoder.encode(firstText));
-            }
+          while (loopCount < 5) {
+            loopCount++;
+            const result = await chat.sendMessageStream(currentMessage);
+            let hasFunctionCalls = false;
+            let functionCalls = [];
 
-            // Stream the rest
             for await (const chunk of result) {
-              const text = chunk.text;
-              if (text) {
-                controller.enqueue(encoder.encode(text));
+              if (chunk.functionCalls && chunk.functionCalls.length > 0) {
+                hasFunctionCalls = true;
+                functionCalls.push(...chunk.functionCalls);
+              } else if (chunk.text) {
+                controller.enqueue(encoder.encode(chunk.text));
               }
             }
-            controller.close();
-          }
-        });
 
-        return new Response(stream, {
-          headers: {
-            "Content-Type": "text/plain; charset=utf-8",
-            "Transfer-Encoding": "chunked",
-            "Cache-Control": "no-cache, no-transform",
-            "X-Content-Type-Options": "nosniff",
-            "Connection": "keep-alive"
-          },
-        });
+            if (hasFunctionCalls) {
+              const functionResponses = [];
+              for (const call of functionCalls) {
+                const toolResult = await executeTool(call, supabase, user.id);
+                functionResponses.push({
+                  functionResponse: {
+                    name: call.name,
+                    response: toolResult
+                  }
+                });
+              }
+              currentMessage = { message: functionResponses };
+              controller.enqueue(encoder.encode("\n\n"));
+              continue;
+            } else {
+              break;
+            }
+          }
+          controller.close();
+        } catch (error) {
+          console.error("Stream Error:", error);
+          controller.enqueue(encoder.encode(`\n\nFeil under generering: ${error.message}`));
+          controller.close();
+        }
       }
-    }
-    
-    return Response.json({ error: "No response from AI" }, { status: 500 });
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Transfer-Encoding": "chunked",
+        "Cache-Control": "no-cache, no-transform",
+        "X-Content-Type-Options": "nosniff",
+        "Connection": "keep-alive"
+      },
+    });
 
   } catch (error) {
     console.error("API Error:", error);
     return Response.json({ error: error.message }, { status: 500 });
   }
 }
-
