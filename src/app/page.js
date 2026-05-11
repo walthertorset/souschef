@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, ChefHat, Loader2, Menu, X, Plus, MessageSquare, LogOut, Package, BookOpen, Calendar, ShoppingCart, ChevronLeft, Camera, Image as ImageIcon, ChevronDown, CheckCircle2, Star, Utensils, Clock, ArrowRight, LayoutDashboard, Sparkles, Zap, ArrowUpRight, Trash2, Edit3, Save, Check } from "lucide-react";
+import { Send, ChefHat, Loader2, Menu, X, Plus, MessageSquare, LogOut, Package, BookOpen, Calendar, ShoppingCart, ChevronLeft, Camera, Image as ImageIcon, ChevronDown, ChevronUp, CheckCircle2, Star, Utensils, Clock, ArrowRight, LayoutDashboard, Sparkles, Zap, ArrowUpRight, Trash2, Edit3, Save, Check } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -146,7 +146,14 @@ export default function Home() {
   const [editingRecipe, setEditingRecipe] = useState(null);
   const [recipePickerDish, setRecipePickerDish] = useState(null); // For manuelt valg hvis match feiler
   const [isFetchingRecipe, setIsFetchingRecipe] = useState(false);
+  const [isOnboardingExpanded, setIsOnboardingExpanded] = useState(false);
 
+  useEffect(() => {
+    const hasSeenOnboarding = localStorage.getItem("onboarding_seen");
+    if (!hasSeenOnboarding) {
+      setIsOnboardingExpanded(true);
+    }
+  }, []);
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -1101,34 +1108,48 @@ export default function Home() {
           </div>
 
           {/* Quick Start / Onboarding */}
-          <div className="bg-white rounded-[32px] p-8 border border-slate-200 shadow-sm mb-10 relative overflow-hidden">
+          <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200 shadow-sm mb-10 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-3xl -z-10" />
-            <div className="flex items-start gap-4 mb-6">
-              <div className="bg-emerald-100 p-3 rounded-2xl">
-                <Sparkles className="w-6 h-6 text-emerald-600" />
+            <div 
+              className="flex items-center justify-between cursor-pointer group" 
+              onClick={() => {
+                setIsOnboardingExpanded(!isOnboardingExpanded);
+                localStorage.setItem("onboarding_seen", "true");
+              }}
+            >
+              <div className="flex items-start gap-4">
+                <div className="bg-emerald-100 p-3 rounded-2xl shrink-0">
+                  <Sparkles className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-800">Kom i gang med Souschef</h3>
+                  <p className="text-slate-500 text-sm hidden sm:block">Følg disse stegene for å få mest mulig ut av din personlige kokk.</p>
+                  {!isOnboardingExpanded && <p className="text-emerald-600 text-xs font-bold mt-1 sm:hidden">Vis guiden</p>}
+                </div>
               </div>
-              <div>
-                <h3 className="text-xl font-bold text-slate-800">Kom i gang med Souschef</h3>
-                <p className="text-slate-500 text-sm">Følg disse stegene for å få mest mulig ut av din personlige kokk.</p>
+              <div className="bg-slate-50 p-2 rounded-xl text-slate-400 group-hover:text-emerald-600 group-hover:bg-emerald-50 transition-all shrink-0">
+                {isOnboardingExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                { step: 1, title: "Opprett varelager", desc: "Legg inn det du har i skapet slik at jeg kan foreslå retter.", view: "lager", icon: Package },
-                { step: 2, title: "Finn en oppskrift", desc: "Be meg om tips basert på ingrediensene dine.", view: "chat", icon: MessageSquare },
-                { step: 3, title: "Planlegg uken", desc: "Lag en ukesmeny og få automatiske handlelister.", view: "ukesmeny", icon: Calendar }
-              ].map((item) => (
-                <div key={item.step} onClick={() => navigateTo(item.view)} className="group cursor-pointer bg-slate-50 hover:bg-white hover:shadow-md border border-slate-100 rounded-2xl p-5 transition-all">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] bg-emerald-50 px-2 py-1 rounded-md">Steg {item.step}</span>
-                    <item.icon className="w-4 h-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+            {isOnboardingExpanded && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8 animate-in fade-in slide-in-from-top-4 duration-300">
+                {[
+                  { step: 1, title: "Opprett varelager", desc: "Legg inn det du har i skapet slik at jeg kan foreslå retter.", view: "lager", icon: Package },
+                  { step: 2, title: "Finn en oppskrift", desc: "Be meg om tips basert på ingrediensene dine.", view: "chat", icon: MessageSquare },
+                  { step: 3, title: "Planlegg uken", desc: "Lag en ukesmeny og få automatiske handlelister.", view: "ukesmeny", icon: Calendar }
+                ].map((item) => (
+                  <div key={item.step} onClick={() => navigateTo(item.view)} className="group cursor-pointer bg-slate-50 hover:bg-white hover:shadow-md border border-slate-100 rounded-2xl p-5 transition-all">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] bg-emerald-50 px-2 py-1 rounded-md">Steg {item.step}</span>
+                      <item.icon className="w-4 h-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                    </div>
+                    <h4 className="font-bold text-slate-800 mb-1 group-hover:text-emerald-600 transition-colors">{item.title}</h4>
+                    <p className="text-xs text-slate-500 leading-relaxed">{item.desc}</p>
                   </div>
-                  <h4 className="font-bold text-slate-800 mb-1 group-hover:text-emerald-600 transition-colors">{item.title}</h4>
-                  <p className="text-xs text-slate-500 leading-relaxed">{item.desc}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Feature Grid */}
