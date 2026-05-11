@@ -1116,7 +1116,7 @@ export default function Home() {
               {messages.map((m, i) => (
                 <div key={i} className={`flex w-full ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[85%] rounded-3xl px-5 py-4 ${m.role === "user" ? "bg-emerald-600 text-white rounded-br-sm" : "bg-white border border-slate-200 text-slate-700 rounded-bl-sm"}`}>
-                    <ReactMarkdown className="prose text-base leading-relaxed" components={{ p: ({node, ...props}) => <p className="mb-5 whitespace-pre-wrap" {...props} /> }}>{m.content}</ReactMarkdown>
+                    <ReactMarkdown className="prose text-base leading-relaxed prose-li:my-0.5" components={{ p: ({node, ...props}) => <p className="mb-4 whitespace-pre-wrap" {...props} /> }}>{m.content}</ReactMarkdown>
                   </div>
                 </div>
               ))}
