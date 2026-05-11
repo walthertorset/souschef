@@ -602,7 +602,7 @@ export default function Home() {
       return acc;
     }, {});
     return (
-      <div className="flex-1 overflow-y-auto px-4 py-6 bg-slate-50 pb-20">
+      <div className="flex-1 overflow-y-auto min-h-0 px-4 py-6 bg-slate-50 pb-20">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-slate-800">Ditt Lager</h2>
           <button onClick={() => { setEditingLagerItem(null); setIsLagerModalOpen(true); }} className="bg-emerald-600 text-white p-2 rounded-full hover:bg-emerald-700 transition-colors">
@@ -673,7 +673,7 @@ export default function Home() {
       return recipeSortOrder === "newest" ? timeB - timeA : timeA - timeB;
     });
     return (
-      <div className="flex-1 overflow-y-auto px-4 py-6 bg-slate-50 pb-20 relative">
+      <div className="flex-1 overflow-y-auto min-h-0 px-4 py-6 bg-slate-50 pb-20 relative">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-slate-800">Din Kokebok</h2>
           <div className="flex items-center gap-3">
@@ -848,7 +848,7 @@ export default function Home() {
     const dager = ["mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lordag", "sondag"];
     const norskeDager = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"];
     return (
-      <div className="flex-1 overflow-y-auto px-4 py-6 bg-slate-50 pb-20">
+      <div className="flex-1 overflow-y-auto min-h-0 px-4 py-6 bg-slate-50 pb-20">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-slate-800">Din Ukesmeny</h2>
           {ukesmeny && (
@@ -884,7 +884,7 @@ export default function Home() {
   };
 
   const renderHandleliste = () => (
-    <div className="flex-1 overflow-y-auto px-4 py-6 bg-slate-50 pb-20">
+    <div className="flex-1 overflow-y-auto min-h-0 px-4 py-6 bg-slate-50 pb-20">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-slate-800">Handleliste</h2>
         {ukesmeny && ukesmeny.handleliste && (
@@ -947,7 +947,7 @@ export default function Home() {
 
   const renderDashboard = () => {
     return (
-      <div className="flex-1 overflow-y-auto px-6 py-8 bg-slate-50 pb-24">
+      <div className="flex-1 overflow-y-auto min-h-0 px-6 py-8 bg-slate-50 pb-24">
         <div className="max-w-5xl mx-auto">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
@@ -1053,7 +1053,7 @@ export default function Home() {
 
   return (
     <main className="flex h-[100dvh] bg-slate-50 text-slate-800 font-sans overflow-hidden relative">
-      <div className={`fixed inset-y-0 left-0 w-[280px] sm:w-80 bg-white border-r border-slate-200 shadow-2xl z-50 transform transition-transform duration-300 flex flex-col ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <div className={`fixed inset-y-0 left-0 w-[280px] sm:w-80 bg-white border-r border-slate-200 shadow-2xl z-50 transform transition-transform duration-300 flex flex-col overflow-y-auto min-h-0 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="p-5 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2"><div className="bg-emerald-500 p-1.5 rounded-lg"><ChefHat className="text-white w-4 h-4" /></div><h2 className="font-bold text-slate-800">Souschef</h2></div>
           <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full"><X className="w-5 h-5" /></button>
@@ -1078,7 +1078,7 @@ export default function Home() {
         </div>
       </div>
       {isSidebarOpen && <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-40" onClick={() => setIsSidebarOpen(false)} />}
-      <div className="flex-1 flex flex-col h-full relative">
+      <div className="flex-1 flex flex-col h-full min-h-0 relative">
         <header className="flex items-center justify-between px-6 py-5 z-10 border-b border-slate-200 bg-white/80 backdrop-blur-md">
           <div className="flex items-center gap-3">
             <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-full"><Menu className="w-6 h-6" /></button>
@@ -1092,7 +1092,7 @@ export default function Home() {
         {activeView === "handleliste" && renderHandleliste()}
         {activeView === "chat" && (
           <>
-            <div className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6 pb-32">
+            <div className="flex-1 overflow-y-auto min-h-0 px-4 py-6 flex flex-col gap-6 pb-32">
               {messages.map((m, i) => (
                 <div key={i} className={`flex w-full ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[85%] rounded-3xl px-5 py-4 ${m.role === "user" ? "bg-emerald-600 text-white rounded-br-sm" : "bg-white border border-slate-200 text-slate-700 rounded-bl-sm"}`}>
