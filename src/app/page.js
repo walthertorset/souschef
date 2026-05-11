@@ -5,6 +5,77 @@ import { Send, ChefHat, Loader2, Menu, X, Plus, MessageSquare, LogOut, Package, 
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/lib/supabaseClient";
 
+// Post-processes raw AI text into proper Markdown for recipe display.
+// This is the reliable way to handle AI models that ignore formatting instructions.
+function formatRecipeText(text) {
+  const sectionHeaders = [
+    "Ingredienser",
+    "Fremgangsmåte",
+    "Framgangsmåte",
+    "Instruksjoner",
+    "Servering",
+    "Tips",
+  ];
+
+  const lines = text.split("\n");
+  const result = [];
+  let inIngredients = false;
+  let inSteps = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Check if this is a known section header (bare text, not already markdown)
+    const matchedHeader = sectionHeaders.find(
+      (h) => trimmed === h || trimmed === h + ":" || trimmed === "**" + h + "**" || trimmed === "**" + h + ":**"
+    );
+    if (matchedHeader) {
+      const baseHeader = matchedHeader.replace(/:$/, "");
+      result.push(""); // blank line before
+      result.push("### " + baseHeader);
+      inIngredients = baseHeader === "Ingredienser";
+      inSteps = baseHeader === "Fremgangsmåte" || baseHeader === "Framgangsmåte" || baseHeader === "Instruksjoner";
+      continue;
+    }
+
+    // In ingredients section: lines that look like ingredients but don't start with '-' get a dash
+    if (inIngredients && trimmed.length > 0) {
+      // Skip if it's already a list, heading, or subheading
+      if (!trimmed.startsWith("-") && !trimmed.startsWith("#") && !trimmed.startsWith("*") && !/^\d+\./.test(trimmed)) {
+        result.push("- " + trimmed);
+        continue;
+      }
+    }
+
+    // In steps section: numbered lines without leading digits get auto-numbered
+    if (inSteps && trimmed.length > 0) {
+      if (!trimmed.startsWith("#") && !/^\d+\./.test(trimmed) && !trimmed.startsWith("-") && !trimmed.startsWith("*")) {
+        // Count existing numbered items
+        const stepCount = result.filter(l => /^\d+\./.test(l.trim())).length + 1;
+        result.push(stepCount + ". " + trimmed);
+        continue;
+      }
+    }
+
+    // Check for sub-section bold headers (e.g. 'Til sausen:' or 'Til kotelettene:')
+    // These are inside ingredients and should stay as bold but reset the step counter
+    if (inIngredients && trimmed.endsWith(":") && !trimmed.startsWith("-") && !trimmed.startsWith("#") && trimmed.length < 40) {
+      // Already bold? keep it. Otherwise make it bold.
+      if (!trimmed.startsWith("**")) {
+        result.push("**" + trimmed + "**");
+      } else {
+        result.push(line);
+      }
+      continue;
+    }
+
+    result.push(line);
+  }
+
+  return result.join("\n");
+}
+
 export default function Home() {
   const [session, setSession] = useState(null);
   const [email, setEmail] = useState("");
@@ -366,7 +437,7 @@ export default function Home() {
 
         setMessages(prev => {
           const newMessages = [...prev];
-          newMessages[newMessages.length - 1] = { role: "assistant", content: assistantContent };
+          newMessages[newMessages.length - 1] = { role: "assistant", content: formatRecipeText(assistantContent) };
           return newMessages;
         });
       }
