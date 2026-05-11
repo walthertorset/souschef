@@ -6,67 +6,78 @@ import ReactMarkdown from "react-markdown";
 import { supabase } from "@/lib/supabaseClient";
 
 // Post-processes raw AI text into proper Markdown for recipe display.
-// This is the reliable way to handle AI models that ignore formatting instructions.
+// Uses regex so it works regardless of whether the AI uses newlines correctly.
 function formatRecipeText(text) {
-  const sectionHeaders = [
-    "Ingredienser",
-    "Fremgangsmåte",
-    "Framgangsmåte",
-    "Instruksjoner",
-    "Servering",
-    "Tips",
-  ];
+  if (!text) return text;
 
-  const lines = text.split("\n");
+  // Step 1: Normalize - ensure section headers are on their own lines.
+  // Match bare "Ingredienser" or "Fremgangsmåte" (with optional ** or :) that appear
+  // either at the start of a line or after sentence-ending punctuation.
+  const headerPattern = /(\n|^)(\*{0,2})(Ingredienser|Fremgangsmåte|Framgangsmåte|Instruksjoner|Servering|Tips)(\*{0,2}):?(\n|$)/gm;
+  let processed = text.replace(headerPattern, (_, pre, _b1, header, _b2, post) => {
+    return `\n\n### ${header}\n`;
+  });
+
+  // Step 2: Process line by line to add dashes to ingredients and numbers to steps
+  const lines = processed.split("\n");
   const result = [];
   let inIngredients = false;
   let inSteps = false;
+  let stepCounter = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
 
-    // Check if this is a known section header (bare text, not already markdown)
-    const matchedHeader = sectionHeaders.find(
-      (h) => trimmed === h || trimmed === h + ":" || trimmed === "**" + h + "**" || trimmed === "**" + h + ":**"
-    );
-    if (matchedHeader) {
-      const baseHeader = matchedHeader.replace(/:$/, "");
-      result.push(""); // blank line before
-      result.push("### " + baseHeader);
-      inIngredients = baseHeader === "Ingredienser";
-      inSteps = baseHeader === "Fremgangsmåte" || baseHeader === "Framgangsmåte" || baseHeader === "Instruksjoner";
+    // Detect section transition
+    if (/^### Ingredienser/.test(trimmed)) {
+      inIngredients = true;
+      inSteps = false;
+      result.push(line);
+      continue;
+    }
+    if (/^### (Fremgangsmåte|Framgangsmåte|Instruksjoner)/.test(trimmed)) {
+      inIngredients = false;
+      inSteps = true;
+      stepCounter = 0;
+      result.push(line);
+      continue;
+    }
+    if (/^### /.test(trimmed)) {
+      inIngredients = false;
+      inSteps = false;
+      result.push(line);
       continue;
     }
 
-    // In ingredients section: lines that look like ingredients but don't start with '-' get a dash
-    if (inIngredients && trimmed.length > 0) {
-      // Skip if it's already a list, heading, or subheading
-      if (!trimmed.startsWith("-") && !trimmed.startsWith("#") && !trimmed.startsWith("*") && !/^\d+\./.test(trimmed)) {
-        result.push("- " + trimmed);
-        continue;
-      }
+    if (trimmed.length === 0) {
+      result.push(line);
+      continue;
     }
 
-    // In steps section: numbered lines without leading digits get auto-numbered
-    if (inSteps && trimmed.length > 0) {
-      if (!trimmed.startsWith("#") && !/^\d+\./.test(trimmed) && !trimmed.startsWith("-") && !trimmed.startsWith("*")) {
-        // Count existing numbered items
-        const stepCount = result.filter(l => /^\d+\./.test(l.trim())).length + 1;
-        result.push(stepCount + ". " + trimmed);
-        continue;
-      }
-    }
-
-    // Check for sub-section bold headers (e.g. 'Til sausen:' or 'Til kotelettene:')
-    // These are inside ingredients and should stay as bold but reset the step counter
-    if (inIngredients && trimmed.endsWith(":") && !trimmed.startsWith("-") && !trimmed.startsWith("#") && trimmed.length < 40) {
-      // Already bold? keep it. Otherwise make it bold.
+    // Sub-section headers inside ingredients (e.g. "Til sausen:" or "Til kotelettene:")
+    if (inIngredients && trimmed.endsWith(":") && trimmed.length < 50 &&
+        !trimmed.startsWith("-") && !trimmed.startsWith("#")) {
       if (!trimmed.startsWith("**")) {
         result.push("**" + trimmed + "**");
       } else {
         result.push(line);
       }
+      continue;
+    }
+
+    // Ingredients: add "- " if not already a list item
+    if (inIngredients && !trimmed.startsWith("-") && !trimmed.startsWith("#") &&
+        !trimmed.startsWith("*") && !/^\d+\./.test(trimmed)) {
+      result.push("- " + trimmed);
+      continue;
+    }
+
+    // Steps: add numbering if not already numbered
+    if (inSteps && !trimmed.startsWith("#") && !/^\d+\./.test(trimmed) &&
+        !trimmed.startsWith("-") && !trimmed.startsWith("*")) {
+      stepCounter++;
+      result.push(stepCounter + ". " + trimmed);
       continue;
     }
 
