@@ -169,7 +169,7 @@ async function executeTool(call, supabase, userId) {
   const { name, args } = call;
   try {
     if (name === "hent_lager") {
-      const { data, error } = await supabase.from("lager").select("*");
+      const { data, error } = await supabase.from("lager").select("*").eq("user_id", userId);
       if (error) throw error;
       return { data };
     }
@@ -180,13 +180,13 @@ async function executeTool(call, supabase, userId) {
       return { success: true, added: data };
     }
     if (name === "hent_kokebok") {
-      const { data, error } = await supabase.from("kokebok").select("*");
+      const { data, error } = await supabase.from("kokebok").select("*").eq("user_id", userId);
       if (error) throw error;
       return { data };
     }
     if (name === "lagre_oppskrift") {
       let parsedOppskrift = args.oppskrift;
-      try { parsedOppskrift = JSON.parse(args.oppskrift); } catch(e) {}
+      try { parsedOppskrift = typeof args.oppskrift === "string" ? JSON.parse(args.oppskrift) : args.oppskrift; } catch(e) {}
       
       const payload = { ...args, oppskrift: parsedOppskrift, user_id: userId };
       const { data, error } = await supabase.from("kokebok").insert(payload).select();
@@ -255,6 +255,7 @@ async function executeTool(call, supabase, userId) {
     }
     return { error: `Unknown tool ${name}` };
   } catch (error) {
+    console.error(`Error executing tool ${name}:`, error);
     return { error: error.message };
   }
 }
@@ -288,7 +289,7 @@ export async function POST(req) {
     
     const history = messages.slice(0, -1).map(m => ({
       role: m.role === "user" ? "user" : "model",
-      parts: [{ text: m.content }]
+      parts: [{ text: m.content || "" }]
     }));
     
     const latestMessage = messages[messages.length - 1].content;
@@ -386,8 +387,10 @@ Følgende forutsetninger gjelder ALLTID:
     }
     
     return Response.json({ error: "No response from AI" }, { status: 500 });
+
   } catch (error) {
     console.error("API Error:", error);
     return Response.json({ error: error.message }, { status: 500 });
   }
 }
+
