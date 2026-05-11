@@ -337,7 +337,9 @@ Det er helt essensielt at du bruker nøyaktig denne formateringen, inkludert '##
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          let currentMessage = { message: latestMessage };
+          let currentMessage = { 
+            message: latestMessage + "\n\n(SYSTEM: Husk at du MÅ bruke ekte Markdown-symboler når du skriver oppskrifter! Bruk '### ' foran hovedoverskrifter, '- ' foran ingredienser, og '1. ' for fremgangsmåte. Dette er et absolutt krav for appens design.)" 
+          };
           let loopCount = 0;
 
           while (loopCount < 5) {
