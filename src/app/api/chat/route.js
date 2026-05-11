@@ -295,7 +295,7 @@ export async function POST(req) {
     const latestMessage = messages[messages.length - 1].content;
     
     const chat = ai.chats.create({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash",
       config: {
         systemInstruction: `Du er Souschef, en AI-kokk. Du hjelper brukeren med matlaging, holder oversikt over spesialvarer/krydder på lageret og lagrer oppskrifter i kokeboken. Svar alltid på Norsk, vær vennlig og formater lister pent. 
 
@@ -332,11 +332,12 @@ Følgende forutsetninger gjelder ALLTID:
             let functionCalls = [];
 
             for await (const chunk of result) {
+              if (chunk.text) {
+                controller.enqueue(encoder.encode(chunk.text));
+              }
               if (chunk.functionCalls && chunk.functionCalls.length > 0) {
                 hasFunctionCalls = true;
                 functionCalls.push(...chunk.functionCalls);
-              } else if (chunk.text) {
-                controller.enqueue(encoder.encode(chunk.text));
               }
             }
 

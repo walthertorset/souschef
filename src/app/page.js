@@ -1053,7 +1053,7 @@ export default function Home() {
 
   return (
     <main className="flex h-[100dvh] bg-slate-50 text-slate-800 font-sans overflow-hidden relative">
-      <div className={`fixed inset-y-0 left-0 w-[280px] sm:w-80 bg-white border-r border-slate-200 shadow-2xl z-50 transform transition-transform duration-300 flex flex-col overflow-hidden ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <div className={`fixed inset-y-0 left-0 w-[280px] sm:w-80 bg-white border-r border-slate-200 shadow-2xl z-50 transform transition-transform duration-300 flex flex-col overflow-y-auto min-h-0 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`} style={{ WebkitOverflowScrolling: 'touch' }}>
         <div className="p-5 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2"><div className="bg-emerald-500 p-1.5 rounded-lg"><ChefHat className="text-white w-4 h-4" /></div><h2 className="font-bold text-slate-800">Souschef</h2></div>
           <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full"><X className="w-5 h-5" /></button>
@@ -1070,7 +1070,7 @@ export default function Home() {
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-2">Historikk</span>
           <button onClick={createNewChat} className="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-lg"><Plus className="w-4 h-4" /></button>
         </div>
-        <div className="flex-1 overflow-y-auto px-3 pb-3 flex flex-col gap-1 overscroll-contain">
+        <div className="flex-1 px-3 pb-3 flex flex-col gap-1">
           {chats.map(chat => (<button key={chat.id} onClick={() => loadChat(chat.id)} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-left ${activeChatId === chat.id ? "bg-slate-100 text-slate-800 font-medium" : "text-slate-500"}`}><div className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0"></div><span className="truncate text-sm">{chat.title}</span></button>))}
         </div>
         <div className="p-4 border-t border-slate-100 bg-slate-50/50">
