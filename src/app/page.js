@@ -742,7 +742,7 @@ export default function Home() {
 
   const renderKokebok = () => {
     const getRecipeTime = (r) => {
-      const d = r.sist_laget || r.created_at;
+      const d = r.sist_laget || r.opprettet;
       if (!d) return 0;
       const time = new Date(d).getTime();
       return isNaN(time) ? 0 : time;
@@ -808,10 +808,10 @@ export default function Home() {
                           <h4 className="font-semibold text-slate-800 text-lg mb-1 line-clamp-1">{item.navn}</h4>
                           <p className="text-xs text-slate-500 capitalize bg-slate-50 px-2 py-0.5 rounded-full w-fit border border-slate-100">{item.kategori}</p>
                         </div>
-                        {(item.sist_laget || item.created_at) && (
-                          <div className="mt-3 flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
-                            <Clock className="w-3 h-3" />
-                            <span>{item.sist_laget ? `Laget ${item.sist_laget}` : `Lagt til ${new Date(item.created_at).toLocaleDateString('nb-NO')}`}</span>
+                        {(item.sist_laget || item.opprettet) && (
+                          <div className="flex items-center gap-1.5 mt-3 text-xs text-slate-400 bg-slate-50 w-fit px-2 py-1 rounded-md">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>{item.sist_laget ? `Laget ${item.sist_laget}` : `Lagt til ${new Date(item.opprettet).toLocaleDateString('nb-NO')}`}</span>
                           </div>
                         )}
                       </div>
