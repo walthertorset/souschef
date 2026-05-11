@@ -328,17 +328,39 @@ Følgende forutsetninger gjelder ALLTID:
 
           while (loopCount < 5) {
             loopCount++;
-            const result = await chat.sendMessageStream(currentMessage);
             let hasFunctionCalls = false;
             let functionCalls = [];
+            let streamSuccess = false;
+            let retryCount = 0;
 
-            for await (const chunk of result) {
-              if (chunk.text) {
-                controller.enqueue(encoder.encode(chunk.text));
-              }
-              if (chunk.functionCalls && chunk.functionCalls.length > 0) {
-                hasFunctionCalls = true;
-                functionCalls.push(...chunk.functionCalls);
+            while (retryCount < 3 && !streamSuccess) {
+              try {
+                const result = await chat.sendMessageStream(currentMessage);
+                hasFunctionCalls = false;
+                functionCalls = [];
+
+                for await (const chunk of result) {
+                  if (chunk.text) {
+                    controller.enqueue(encoder.encode(chunk.text));
+                  }
+                  if (chunk.functionCalls && chunk.functionCalls.length > 0) {
+                    hasFunctionCalls = true;
+                    functionCalls.push(...chunk.functionCalls);
+                  }
+                }
+                streamSuccess = true;
+              } catch (e) {
+                const isOverloaded = e.message?.includes("429") || e.status === 429 || e.status === 503 || /quota|overloaded|stor trafikk|too many requests|unavailable/i.test(e.message);
+                if (isOverloaded && retryCount < 2) {
+                  retryCount++;
+                  console.log(`Model overloaded (Attempt ${retryCount}), retrying...`);
+                  if (retryCount === 1) {
+                    controller.enqueue(encoder.encode(`\n\n*(Stor pågang hos AI-modellen akkurat nå, prøver på nytt om litt...)*\n`));
+                  }
+                  await new Promise(r => setTimeout(r, retryCount * 3000)); // 3s, then 6s delay
+                } else {
+                  throw e;
+                }
               }
             }
 
