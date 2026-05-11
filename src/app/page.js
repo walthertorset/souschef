@@ -784,7 +784,27 @@ export default function Home() {
               {parsedOppskrift.ingredienser && (
                 <div>
                   <h3 className="text-xl font-bold text-slate-800 mb-4">Ingredienser</h3>
-                  <ul className="space-y-2">{parsedOppskrift.ingredienser.map((ing, i) => (<li key={i} className="flex gap-3 items-start sm:items-center text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100"><div className="w-1.5 h-1.5 bg-emerald-400 rounded-full mt-2 sm:mt-0 shrink-0"></div><div className="flex flex-col sm:flex-row sm:gap-2 w-full"><span className="font-semibold whitespace-normal">{ing.mengde?.trim()}</span><span className="whitespace-normal break-words">{ing.navn?.trim()}</span></div></li>))}</ul>
+                  <ul className="space-y-2">
+                    {parsedOppskrift.ingredienser.map((ing, i) => {
+                      const isHeading = !ing.mengde && ing.navn?.endsWith(':');
+                      if (isHeading) {
+                        return (
+                          <li key={i} className="pt-4 pb-1 mb-1 border-b border-slate-100">
+                            <span className="font-bold text-emerald-800 text-xs uppercase tracking-widest">{ing.navn}</span>
+                          </li>
+                        );
+                      }
+                      return (
+                        <li key={i} className="flex gap-3 items-start sm:items-center text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                          <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full mt-2 sm:mt-0 shrink-0"></div>
+                          <div className="flex flex-col sm:flex-row sm:gap-2 w-full">
+                            <span className="font-semibold whitespace-normal">{ing.mengde?.trim()}</span>
+                            <span className="whitespace-normal break-words">{ing.navn?.trim()}</span>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               )}
               {parsedOppskrift.instruksjoner && (
