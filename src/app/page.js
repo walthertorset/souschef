@@ -706,9 +706,12 @@ export default function Home() {
     }, {});
     return (
       <div className="flex-1 overflow-y-auto min-h-0 px-4 py-6 bg-slate-50 pb-20">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-8">
           <h2 className="text-2xl font-bold text-slate-800">Ditt Lager</h2>
-          <button onClick={() => { setEditingLagerItem(null); setIsLagerModalOpen(true); }} className="bg-emerald-600 text-white p-2 rounded-full hover:bg-emerald-700 transition-colors">
+          <button 
+            onClick={() => { setEditingLagerItem(null); setIsLagerModalOpen(true); }} 
+            className="bg-emerald-600 text-white p-2.5 rounded-xl hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20 active:scale-95"
+          >
             <Plus className="w-5 h-5" />
           </button>
         </div>
@@ -777,15 +780,22 @@ export default function Home() {
     });
     return (
       <div className="flex-1 overflow-y-auto min-h-0 px-4 py-6 bg-slate-50 pb-20 relative">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <h2 className="text-2xl font-bold text-slate-800">Din Kokebok</h2>
-          <div className="flex items-center gap-3">
-            <select value={recipeSortOrder} onChange={e => setRecipeSortOrder(e.target.value)} className="bg-white border border-slate-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <select 
+              value={recipeSortOrder} 
+              onChange={e => setRecipeSortOrder(e.target.value)} 
+              className="flex-1 sm:flex-none bg-white border border-slate-200 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-sm"
+            >
               <option value="newest">Nyeste først</option>
               <option value="oldest">Eldste først</option>
               <option value="alphabetical">Alfabetisk (A-Å)</option>
             </select>
-            <button onClick={() => { setEditingRecipe(null); setIsRecipeEditModalOpen(true); }} className="bg-emerald-600 text-white p-2 rounded-full hover:bg-emerald-700 transition-colors">
+            <button 
+              onClick={() => { setEditingRecipe(null); setIsRecipeEditModalOpen(true); }} 
+              className="bg-emerald-600 text-white p-2.5 rounded-xl hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20 active:scale-95"
+            >
               <Plus className="w-5 h-5" />
             </button>
           </div>
@@ -972,10 +982,13 @@ export default function Home() {
     const norskeDager = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"];
     return (
       <div className="flex-1 overflow-y-auto min-h-0 px-4 py-6 bg-slate-50 pb-20">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-8">
           <h2 className="text-2xl font-bold text-slate-800">Din Ukesmeny</h2>
           {ukesmeny && (
-            <button onClick={nullstillUkesmenyOnly} className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-xl transition-colors text-sm font-semibold">
+            <button 
+              onClick={nullstillUkesmenyOnly} 
+              className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2.5 rounded-xl transition-all text-sm font-bold active:scale-95"
+            >
               <Trash2 className="w-4 h-4" /> Nullstill
             </button>
           )}
@@ -1008,14 +1021,17 @@ export default function Home() {
 
   const renderHandleliste = () => (
     <div className="flex-1 overflow-y-auto min-h-0 px-4 py-6 bg-slate-50 pb-20">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-slate-800">Handleliste</h2>
-        {ukesmeny && ukesmeny.handleliste && (
-          <button onClick={nullstillHandlelisteOnly} className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-xl transition-colors text-sm font-semibold">
-            <Trash2 className="w-4 h-4" /> Nullstill
-          </button>
-        )}
-      </div>
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-2xl font-bold text-slate-800">Handleliste</h2>
+          {ukesmeny && ukesmeny.handleliste && (
+            <button 
+              onClick={nullstillHandlelisteOnly} 
+              className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2.5 rounded-xl transition-all text-sm font-bold active:scale-95"
+            >
+              <Trash2 className="w-4 h-4" /> Nullstill
+            </button>
+          )}
+        </div>
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 max-w-2xl mx-auto">
         {ukesmeny && ukesmeny.handleliste ? (
           <ReactMarkdown 
