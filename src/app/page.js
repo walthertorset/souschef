@@ -784,7 +784,7 @@ export default function Home() {
               {parsedOppskrift.ingredienser && (
                 <div>
                   <h3 className="text-xl font-bold text-slate-800 mb-4">Ingredienser</h3>
-                  <ul className="space-y-2">{parsedOppskrift.ingredienser.map((ing, i) => (<li key={i} className="flex gap-2 items-center text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100"><div className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div><span className="font-medium">{ing.mengde}</span> {ing.navn}</li>))}</ul>
+                  <ul className="space-y-2">{parsedOppskrift.ingredienser.map((ing, i) => (<li key={i} className="flex gap-3 items-start sm:items-center text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100"><div className="w-1.5 h-1.5 bg-emerald-400 rounded-full mt-2 sm:mt-0 shrink-0"></div><div className="flex flex-col sm:flex-row sm:gap-2 w-full"><span className="font-semibold whitespace-normal">{ing.mengde?.trim()}</span><span className="whitespace-normal break-words">{ing.navn?.trim()}</span></div></li>))}</ul>
                 </div>
               )}
               {parsedOppskrift.instruksjoner && (
@@ -794,7 +794,7 @@ export default function Home() {
                 </div>
               )}
             </div>
-          ) : <ReactMarkdown className="prose">{selectedRecipe.oppskrift}</ReactMarkdown>}
+          ) : <ReactMarkdown className="prose" components={{ p: ({node, ...props}) => <p className="mb-4 whitespace-pre-wrap" {...props} /> }}>{selectedRecipe.oppskrift}</ReactMarkdown>}
         </div>
       </div>
     );
@@ -1096,7 +1096,7 @@ export default function Home() {
               {messages.map((m, i) => (
                 <div key={i} className={`flex w-full ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[85%] rounded-3xl px-5 py-4 ${m.role === "user" ? "bg-emerald-600 text-white rounded-br-sm" : "bg-white border border-slate-200 text-slate-700 rounded-bl-sm"}`}>
-                    <ReactMarkdown className="prose text-[15px]">{m.content}</ReactMarkdown>
+                    <ReactMarkdown className="prose text-[15px]" components={{ p: ({node, ...props}) => <p className="mb-4 whitespace-pre-wrap" {...props} /> }}>{m.content}</ReactMarkdown>
                   </div>
                 </div>
               ))}
