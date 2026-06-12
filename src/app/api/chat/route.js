@@ -301,7 +301,7 @@ export async function POST(req) {
 
 Følgende forutsetninger gjelder ALLTID:
 1. Utstyr og Basisvarer: Anta at brukeren har et svært godt utstyrt kjøkken hva angår alle vanlige redskaper og basisvarer (som salt, pepper, vann, stekesmør/olje, sukker, mel, og lignende), selv om dette ikke står spesifikt på lageret.
-2. Varelager og innkjøp: Varelageret inneholder kun krydder, oljer, eddiker og spesialvarer. Når du foreslår oppskrifter, ta utgangspunkt i å bruke disse spesialvarene for å skape smak. Alt annet av ingredienser du foreslår for å fullføre retten MÅ være vanlige varer man får tak i på en standard norsk dagligvarebutikk (som Kiwi eller Rema 1000).
+2. Varelager og innkjøp: FØR du foreslår oppskrifter, eller når brukeren spør om lageret, MÅ du ALLTID bruke 'hent_lager' for å se nøyaktig hva brukeren har. Varelageret inneholder kun krydder, oljer, eddiker og spesialvarer. Når du foreslår oppskrifter, ta utgangspunkt i å bruke disse spesialvarene for å skape smak. Alt annet av ingredienser du foreslår for å fullføre retten MÅ være vanlige varer man får tak i på en standard norsk dagligvarebutikk (som Kiwi eller Rema 1000).
 3. Oppskrifter & Preferanser: Dere foretrekker autentiske måltider, og gjerne sunne varianter i hverdagene. Sorter og merk alltid oppskrifter som 'hverdag' (raskere, mindre effort) eller 'helg' (mer tid/effort). Angi estimert tidsbruk.
 4. Handlelister & Merging: 
    - Før du legger til noe i handlelisten, må du ALLTID bruke 'hent_ukesmeny' for å se hva som allerede står der.
@@ -310,7 +310,7 @@ Følgende forutsetninger gjelder ALLTID:
    - Hver vare i handlelisten skal bruke sjekkliste-formatet '- [ ] ', f.eks: '- [ ] 500g Kjøttdeig (til Taco)'.
    - Handlelister skal ALLTID sorteres etter hvor varene befinner seg fysisk i en typisk norsk matbutikk (f.eks. Frukt & Grønt, Kjøtt & Fisk, Kjølevare/Mejeri, Tørrvare, Frysevare).
 5. Ukesmenyer: Hvis du blir bedt om å foreslå meny for flere dager eller en hel uke, skal du alltid generere én felles, summert handleliste for hele perioden, som igjen er pent sortert etter butikkavdelinger. Bruk alltid '- [ ] ' for alle varer.
-6. Duplikater på lager: Sjekk alltid hva som allerede finnes på lageret før du legger til nye varer. Hvis brukeren ber deg legge til en ingrediens som allerede finnes (f.eks. Spisskummen), skal du IKKE legge den til på nytt for å unngå duplikater.
+6. Duplikater på lager: Bruk ALLTID 'hent_lager' for å sjekke hva som allerede finnes før du legger til nye varer. Hvis brukeren ber deg legge til en ingrediens som allerede finnes (f.eks. Spisskummen), skal du IKKE legge den til på nytt for å unngå duplikater.
 7. Oppskriftsforespørsler: Hvis brukeren ber om en oppskrift i JSON-format, skal du svare med et objekt som inneholder 'navn', 'cuisine', 'kategori', 'ingredienser' og 'instruksjoner'. For å gruppere ingredienser (f.eks. 'Saus', 'Marinade'), legg til et element i 'ingredienser'-listen med tom 'mengde' og 'navn' som slutter på kolon (f.eks. { "mengde": "", "navn": "Saus:" }).
 8. Klassifisering: Du skal ALLTID tildele en 'cuisine' til alle oppskrifter du lagrer eller foreslår. Bruk kjente kategorier som 'Norsk', 'Italiensk', 'Asiatisk', 'Indisk', 'Mexikansk', 'Amerikansk', osv. Dette er kritisk for at sorteringen i kokeboken skal fungere.
 9. Formatering i Chat: Du MÅ skrive oppskrifter med EKTE Markdown. Se på dette eksempelet på nøyaktig hvordan du skal formatere svaret (bruk alltid disse symbolene):
@@ -384,6 +384,7 @@ Det er helt essensielt at du bruker nøyaktig denne formateringen, inkludert '##
                 const toolResult = await executeTool(call, supabase, user.id);
                 functionResponses.push({
                   functionResponse: {
+                    id: call.id,
                     name: call.name,
                     response: toolResult
                   }
