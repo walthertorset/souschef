@@ -247,4 +247,36 @@ export class OdaClient {
   isAuthenticated() {
     return !!this.cookies["sessionid"];
   }
+
+  async bulkSearchAndAdd(items) {
+    const results = [];
+    for (const item of items) {
+      try {
+        const searchRes = await this.searchProducts(item.query);
+        if (searchRes.items && searchRes.items.length > 0) {
+          const product = searchRes.items[0];
+          await this.addToCart(product.id, item.quantity);
+          results.push({
+            query: item.query,
+            status: "added",
+            product: product.name,
+            price: product.price
+          });
+        } else {
+          results.push({
+            query: item.query,
+            status: "failed",
+            reason: "Ingen treff"
+          });
+        }
+      } catch (err) {
+        results.push({
+          query: item.query,
+          status: "failed",
+          reason: err.message
+        });
+      }
+    }
+    return results;
+  }
 }

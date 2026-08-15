@@ -191,6 +191,28 @@ const tools = [{
       }
     },
     {
+      name: "oda_bulk_search_and_add",
+      description: "Søk opp og legg til flere varer i Oda-handlekurven på én gang. Systemet vil automatisk velge det mest relevante produktet for hvert søk. Bruk denne ALLTID når du skal legge en hel handleliste i kurven.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          items: {
+            type: "ARRAY",
+            description: "Liste over varer som skal søkes opp og legges i kurven",
+            items: {
+              type: "OBJECT",
+              properties: {
+                query: { type: "STRING", description: "Søketermen, f.eks. 'kjøttdeig', 'tine lettmelk', 'hakkede tomater mutti'" },
+                quantity: { type: "NUMBER", description: "Antall enheter" }
+              },
+              required: ["query", "quantity"]
+            }
+          }
+        },
+        required: ["items"]
+      }
+    },
+    {
       name: "nullstill_ukesmeny",
       description: "Slett ukesmenyen (mandag-søndag), men behold handlelisten. Bruk denne hvis brukeren vil planlegge uken på nytt."
     },
@@ -313,6 +335,14 @@ async function executeTool(call, supabase, userId, mcpClient, mcpToolNames) {
       await client.addToCart(args.productId, args.quantity);
       return { success: true };
     }
+    if (name === "oda_bulk_search_and_add") {
+      const client = await getOdaClient();
+      if (!client.isAuthenticated()) {
+        return { error: "Ikke logget inn på Oda." };
+      }
+      const res = await client.bulkSearchAndAdd(args.items);
+      return { success: true, results: res };
+    }
     return { error: `Unknown tool ${name}` };
   } catch (error) {
     console.error(`Error executing tool ${name}:`, error);
@@ -374,7 +404,7 @@ Følgende forutsetninger gjelder ALLTID:
 7. Oppskriftsforespørsler: Hvis brukeren ber om en oppskrift i JSON-format, svar med et objekt som inneholder 'navn', 'cuisine', 'kategori', 'ingredienser' og 'instruksjoner'. For å gruppere ingredienser, legg til et element i 'ingredienser'-listen med tom 'mengde' og 'navn' som slutter på kolon.
 8. Klassifisering: Du skal ALLTID tildele en 'cuisine' til alle oppskrifter du lagrer eller foreslår.
 9. Formatering i Chat: Du MÅ skrive oppskrifter med EKTE Markdown. Bruk alltid '### ' foran hovedoverskrifter, '- ' foran ingredienser og tall foran fremgangsmåte.
-10. Oda Integrasjon: Du har tilgang til Oda via native API for å søke etter produkter og legge dem i handlekurven. Hvis brukeren ber om å handle på Oda (eller nevner Oda), MÅ du søke opp produktene (oda_product_search) for å finne ID-ene, og deretter legge dem til i kurven (oda_cart_add). Siden Oda ofte har mange treff, forsøk å velge enkle, vanlige varer, og bruk handlelisten for å avgjøre antall.`,
+10. Oda Integrasjon: Du har tilgang til Oda for å handle mat. Hvis brukeren ber om å legge alle varene eller hele handlelisten i kurven, MÅ du ALLTID bruke 'oda_bulk_search_and_add'. Bare send en liste med varene (f.eks "hakkede tomater", "torskefilet frossen"), så velger systemet de mest populære varene for deg. ALDRI spør brukeren om mer spesifikk informasjon (som merke eller type potet); bare gjør et kvalifisert gjett og send det til bulk-verktøyet. For enkelt-varer kan du fortsette å bruke oda_product_search og oda_cart_add hvis det trengs.`,
         tools: tools,
       },
       history: history
