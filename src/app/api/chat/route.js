@@ -1,70 +1,20 @@
 import { GoogleGenAI } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { OdaClient } from "../../../utils/oda-client";
 
 export const dynamic = 'force-dynamic';
 
-let mcpClient = null;
-let mcpTools = [];
+let odaClient = null;
 
-function convertJsonSchemaToGemini(schema) {
-  if (!schema) return undefined;
-  const geminiTypeMap = {
-    "string": "STRING",
-    "number": "NUMBER",
-    "integer": "INTEGER",
-    "boolean": "BOOLEAN",
-    "object": "OBJECT",
-    "array": "ARRAY"
-  };
-  
-  const result = {
-    type: geminiTypeMap[schema.type] || "STRING"
-  };
-  
-  if (schema.description) result.description = schema.description;
-  
-  if (schema.type === "object" && schema.properties) {
-    result.properties = {};
-    for (const [key, value] of Object.entries(schema.properties)) {
-      result.properties[key] = convertJsonSchemaToGemini(value);
-    }
-    if (schema.required) result.required = schema.required;
+async function getOdaClient() {
+  if (!odaClient) {
+    odaClient = new OdaClient();
   }
-  
-  if (schema.type === "array" && schema.items) {
-    result.items = convertJsonSchemaToGemini(schema.items);
+  // Alltid sjekk om vi er logget inn, da sesjonen kan utløpe
+  if (!odaClient.isAuthenticated() && process.env.ODA_EMAIL && process.env.ODA_PASSWORD) {
+    await odaClient.login(process.env.ODA_EMAIL, process.env.ODA_PASSWORD);
   }
-  
-  return result;
-}
-
-async function getMcpClient() {
-  if (mcpClient) return { client: mcpClient, tools: mcpTools };
-  
-  try {
-    const transport = new StdioClientTransport({
-      command: "npx",
-      args: ["-y", "github:gbbirkisson/mcp-oda", "mcp"]
-    });
-    
-    mcpClient = new Client({
-      name: "souschef-client",
-      version: "1.0.0"
-    }, {
-      capabilities: {}
-    });
-    
-    await mcpClient.connect(transport);
-    const toolsResult = await mcpClient.listTools();
-    mcpTools = toolsResult.tools;
-  } catch (err) {
-    console.error("Error connecting to Oda MCP:", err);
-    mcpTools = [];
-  }
-  
-  return { client: mcpClient, tools: mcpTools };
+  return odaClient;
 }
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -206,12 +156,38 @@ const tools = [{
             properties: {
               navn: { type: "STRING" },
               kategori: { type: "STRING" },
+              rangering: { type: "INTEGER" },
+              notater: { type: "STRING" },
               cuisine: { type: "STRING" },
-              oppskrift: { type: "STRING", description: "Oppskriftsdata som JSON streng" }
+              oppskrift: { type: "STRING" },
+              sist_laget: { type: "STRING" }
             }
           }
         },
         required: ["id", "data"]
+      }
+    },
+    {
+      name: "oda_product_search",
+      description: "Søk etter produkter på Oda.com for å finne nøyaktig produkt og produkt-ID (som trengs for å legge i handlekurv). Returnerer lister med produkter, deres pris og ID.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          query: { type: "STRING", description: "Søketermen, f.eks. 'kjøttdeig' eller 'tine melk'" }
+        },
+        required: ["query"]
+      }
+    },
+    {
+      name: "oda_cart_add",
+      description: "Legg til et spesifikt produkt i Oda-handlekurven ved å bruke produkt-ID. Du må søke opp produktet først for å finne riktig ID.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          productId: { type: "NUMBER", description: "ID-en til produktet (hentet fra oda_product_search)" },
+          quantity: { type: "NUMBER", description: "Antall enheter som skal legges i handlekurven" }
+        },
+        required: ["productId", "quantity"]
       }
     },
     {
@@ -321,6 +297,22 @@ async function executeTool(call, supabase, userId, mcpClient, mcpToolNames) {
       if (error && error.code !== "PGRST116") throw error; // Ignorer "ikke funnet" feil
       return { data: data || null };
     }
+    if (name === "oda_product_search") {
+      const client = await getOdaClient();
+      if (!client.isAuthenticated()) {
+        return { error: "Ikke logget inn på Oda. Brukeren må angi ODA_EMAIL og ODA_PASSWORD miljøvariabler i Vercel." };
+      }
+      const res = await client.searchProducts(args.query);
+      return res;
+    }
+    if (name === "oda_cart_add") {
+      const client = await getOdaClient();
+      if (!client.isAuthenticated()) {
+        return { error: "Ikke logget inn på Oda." };
+      }
+      await client.addToCart(args.productId, args.quantity);
+      return { success: true };
+    }
     return { error: `Unknown tool ${name}` };
   } catch (error) {
     console.error(`Error executing tool ${name}:`, error);
@@ -362,21 +354,6 @@ export async function POST(req) {
     
     const latestMessage = messages[messages.length - 1].content;
     
-    const { client: mcpC, tools: fetchedMcpTools } = await getMcpClient();
-    const mcpToolNames = fetchedMcpTools.map(t => t.name);
-    const dynamicGeminiTools = fetchedMcpTools.map(t => ({
-      name: t.name,
-      description: t.description,
-      parameters: convertJsonSchemaToGemini(t.inputSchema)
-    }));
-    
-    const allTools = [{
-      functionDeclarations: [
-        ...tools[0].functionDeclarations,
-        ...dynamicGeminiTools
-      ]
-    }];
-    
     const chat = ai.chats.create({
       model: "gemini-2.5-flash",
       config: {
@@ -411,8 +388,8 @@ Følgende forutsetninger gjelder ALLTID:
 2. Stek hvitløken.
 
 Det er helt essensielt at du bruker nøyaktig denne formateringen, inkludert '### ' foran hovedoverskrifter, '- ' foran ingredienser og tall foran fremgangsmåte.
-10. Oda Integrasjon: Du har tilgang til Oda via MCP for å søke etter produkter og legge dem i handlekurven. Hvis brukeren ber om å handle på Oda (eller nevner Oda), MÅ du søke opp produktene (product_search) for å finne ID-ene, og deretter legge dem til i kurven (cart_add). Bruk disse verktøyene aktivt for å hjelpe med mathandlingen.`,
-        tools: allTools,
+10. Oda Integrasjon: Du har tilgang til Oda via native API for å søke etter produkter og legge dem i handlekurven. Hvis brukeren ber om å handle på Oda (eller nevner Oda), MÅ du søke opp produktene (oda_product_search) for å finne ID-ene, og deretter legge dem til i kurven (oda_cart_add). Siden Oda ofte har mange treff, forsøk å velge enkle, vanlige varer, og bruk handlelisten for å avgjøre antall.`,
+        tools: tools,
       },
       history: history
     });
@@ -465,7 +442,7 @@ Det er helt essensielt at du bruker nøyaktig denne formateringen, inkludert '##
             if (hasFunctionCalls) {
               const functionResponses = [];
               for (const call of functionCalls) {
-                const toolResult = await executeTool(call, supabase, user.id, mcpC, mcpToolNames);
+                const toolResult = await executeTool(call, supabase, user.id);
                 functionResponses.push({
                   functionResponse: {
                     id: call.id,
