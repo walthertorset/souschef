@@ -958,7 +958,7 @@ export default function Home() {
           <div className="flex justify-between items-center mb-6">
             <div>
               <h3 className="text-xl font-bold text-slate-800">Velg oppskrift</h3>
-              <p className="text-sm text-slate-500 mt-1">Fant ingen automatisk match for "{recipePickerDish}"</p>
+              <p className="text-sm text-slate-500 mt-1">Fant ingen automatisk match for &quot;{recipePickerDish}&quot;</p>
             </div>
             <button onClick={() => setRecipePickerDish(null)} className="p-2 hover:bg-slate-100 rounded-full"><X className="w-5 h-5" /></button>
           </div>
@@ -1030,14 +1030,27 @@ export default function Home() {
     <div className="flex-1 overflow-y-auto min-h-0 px-4 py-6 bg-slate-50 pb-20">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-2xl font-bold text-slate-800">Handleliste</h2>
-          {ukesmeny && ukesmeny.handleliste && (
-            <button 
-              onClick={nullstillHandlelisteOnly} 
-              className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2.5 rounded-xl transition-all text-sm font-bold active:scale-95"
-            >
-              <Trash2 className="w-4 h-4" /> Nullstill
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {ukesmeny && ukesmeny.handleliste && (
+              <>
+                <button 
+                  onClick={() => {
+                    setActiveView("chat");
+                    setInput("Vær så snill å finn disse varene på Oda og legg dem i handlekurven min:\n\n" + ukesmeny.handleliste);
+                  }} 
+                  className="flex items-center gap-2 bg-orange-100 text-orange-700 hover:bg-orange-200 px-4 py-2.5 rounded-xl transition-all text-sm font-bold active:scale-95"
+                >
+                  <Package className="w-4 h-4" /> Bestill på Oda
+                </button>
+                <button 
+                  onClick={nullstillHandlelisteOnly} 
+                  className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2.5 rounded-xl transition-all text-sm font-bold active:scale-95"
+                >
+                  <Trash2 className="w-4 h-4" /> Nullstill
+                </button>
+              </>
+            )}
+          </div>
         </div>
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 max-w-2xl mx-auto">
         {ukesmeny && ukesmeny.handleliste ? (

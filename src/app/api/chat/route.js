@@ -1,7 +1,71 @@
 import { GoogleGenAI } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 export const dynamic = 'force-dynamic';
+
+let mcpClient = null;
+let mcpTools = [];
+
+function convertJsonSchemaToGemini(schema) {
+  if (!schema) return undefined;
+  const geminiTypeMap = {
+    "string": "STRING",
+    "number": "NUMBER",
+    "integer": "INTEGER",
+    "boolean": "BOOLEAN",
+    "object": "OBJECT",
+    "array": "ARRAY"
+  };
+  
+  const result = {
+    type: geminiTypeMap[schema.type] || "STRING"
+  };
+  
+  if (schema.description) result.description = schema.description;
+  
+  if (schema.type === "object" && schema.properties) {
+    result.properties = {};
+    for (const [key, value] of Object.entries(schema.properties)) {
+      result.properties[key] = convertJsonSchemaToGemini(value);
+    }
+    if (schema.required) result.required = schema.required;
+  }
+  
+  if (schema.type === "array" && schema.items) {
+    result.items = convertJsonSchemaToGemini(schema.items);
+  }
+  
+  return result;
+}
+
+async function getMcpClient() {
+  if (mcpClient) return { client: mcpClient, tools: mcpTools };
+  
+  try {
+    const transport = new StdioClientTransport({
+      command: "npx",
+      args: ["-y", "github:gbbirkisson/mcp-oda", "mcp"]
+    });
+    
+    mcpClient = new Client({
+      name: "souschef-client",
+      version: "1.0.0"
+    }, {
+      capabilities: {}
+    });
+    
+    await mcpClient.connect(transport);
+    const toolsResult = await mcpClient.listTools();
+    mcpTools = toolsResult.tools;
+  } catch (err) {
+    console.error("Error connecting to Oda MCP:", err);
+    mcpTools = [];
+  }
+  
+  return { client: mcpClient, tools: mcpTools };
+}
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -165,9 +229,13 @@ const tools = [{
   ]
 }];
 
-async function executeTool(call, supabase, userId) {
+async function executeTool(call, supabase, userId, mcpClient, mcpToolNames) {
   const { name, args } = call;
   try {
+    if (mcpToolNames && mcpToolNames.includes(name)) {
+      const result = await mcpClient.callTool({ name, arguments: args });
+      return result;
+    }
     if (name === "hent_lager") {
       const { data, error } = await supabase.from("lager").select("*").eq("user_id", userId);
       if (error) throw error;
@@ -294,6 +362,21 @@ export async function POST(req) {
     
     const latestMessage = messages[messages.length - 1].content;
     
+    const { client: mcpC, tools: fetchedMcpTools } = await getMcpClient();
+    const mcpToolNames = fetchedMcpTools.map(t => t.name);
+    const dynamicGeminiTools = fetchedMcpTools.map(t => ({
+      name: t.name,
+      description: t.description,
+      parameters: convertJsonSchemaToGemini(t.inputSchema)
+    }));
+    
+    const allTools = [{
+      functionDeclarations: [
+        ...tools[0].functionDeclarations,
+        ...dynamicGeminiTools
+      ]
+    }];
+    
     const chat = ai.chats.create({
       model: "gemini-2.5-flash",
       config: {
@@ -327,8 +410,9 @@ Følgende forutsetninger gjelder ALLTID:
 1. Varm oljen.
 2. Stek hvitløken.
 
-Det er helt essensielt at du bruker nøyaktig denne formateringen, inkludert '### ' foran hovedoverskrifter, '- ' foran ingredienser og tall foran fremgangsmåte.`,
-        tools: tools,
+Det er helt essensielt at du bruker nøyaktig denne formateringen, inkludert '### ' foran hovedoverskrifter, '- ' foran ingredienser og tall foran fremgangsmåte.
+10. Oda Integrasjon: Du har tilgang til Oda via MCP for å søke etter produkter og legge dem i handlekurven. Hvis brukeren ber om å handle på Oda (eller nevner Oda), MÅ du søke opp produktene (product_search) for å finne ID-ene, og deretter legge dem til i kurven (cart_add). Bruk disse verktøyene aktivt for å hjelpe med mathandlingen.`,
+        tools: allTools,
       },
       history: history
     });
@@ -381,7 +465,7 @@ Det er helt essensielt at du bruker nøyaktig denne formateringen, inkludert '##
             if (hasFunctionCalls) {
               const functionResponses = [];
               for (const call of functionCalls) {
-                const toolResult = await executeTool(call, supabase, user.id);
+                const toolResult = await executeTool(call, supabase, user.id, mcpC, mcpToolNames);
                 functionResponses.push({
                   functionResponse: {
                     id: call.id,
